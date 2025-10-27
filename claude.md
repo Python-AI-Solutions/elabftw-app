@@ -1,4 +1,4 @@
-# elabftw-app — claude.md (Technical Guardrails & Authoring Policy)
+﻿# elabftw-app — claude.md (Technical Guardrails & Authoring Policy)
 
 **Purpose.** This document constrains how code, configs, and docs are generated for **elabftw-app**. It complements the project **Constitution** with strict, low-level rules so any assistant/tooling (including Claude) produces compliant, production-quality changes.
 
