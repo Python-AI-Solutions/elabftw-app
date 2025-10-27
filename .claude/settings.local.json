@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pixi init:*)",
+      "Bash(pixi add:*)",
+      "SlashCommand(/constitution)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

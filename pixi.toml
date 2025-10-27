@@ -1,0 +1,44 @@
+[workspace]
+authors = ["heetshah16 <shah.13@iitj.ac.in>"]
+channels = ["conda-forge"]
+name = "elabftw-app"
+platforms = ["win-64"]
+version = "0.1.0"
+
+[tasks]
+install-pypi = "pip install -e ."
+dev = "uvicorn src.main:app --reload --host 0.0.0.0 --port 8000"
+ui = "streamlit run src/ui/app.py"
+test = "pytest tests/ -v"
+lint = "ruff check src/ tests/"
+format = "ruff format src/ tests/"
+type-check = "mypy src/"
+validate-nwb = "python -m scripts.validate_nwb"
+
+[dependencies]
+python = "3.13.*"
+fastapi = ">=0.119.1,<0.120"
+uvicorn = ">=0.38.0,<0.39"
+watchfiles = ">=1.1.1,<2"
+httpx = ">=0.28.1,<0.29"
+pydantic = ">=2.12.3,<3"
+rich = ">=14.2.0,<15"
+loguru = ">=0.7.3,<0.8"
+streamlit = ">=1.50.0,<2"
+pynwb = ">=3.1.2,<4"
+dandi = ">=0.67.2,<0.68"
+pytest = ">=8.4.2,<9"
+pytest-asyncio = ">=1.2.0,<2"
+ruff = ">=0.14.2,<0.15"
+mypy = ">=1.18.2,<2"
+pre-commit = ">=4.3.0,<5"
+celery = ">=5.5.3,<6"
+aiofiles = ">=25.1.0,<26"
+python-multipart = ">=0.0.20,<0.0.21"
+redis-py = ">=7.0.0,<8"
+pip = ">=25.2,<26"
+
+[pypi-dependencies]
+neuroconv = ">=0.6.0"
+ndx-fiber-photometry = ">=0.3.0"
+elabapi-python = ">=0.9.0"
