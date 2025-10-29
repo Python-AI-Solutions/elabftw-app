@@ -9,17 +9,33 @@ elabftw-app automates the protocol-to-publication workflow for NIH neuroscience 
 
 **Technical Approach**: Microservices architecture with FastAPI backend for API orchestration, Streamlit operator UI for monitoring, Celery workers for long-running packaging/upload jobs, watchfiles-based directory monitoring for data readiness detection, modular ELN and storage adapters for multi-backend support, and pynwb/neuroconv for NWB generation with ndx-fiber-photometry extension. All operations are idempotent with structured logging and provenance tracking back to ELN entries.
 
+**ArchiveFlow Integration**: This implementation plan builds upon the **ArchiveFlow prototype** developed by **Josh Lawrimore (NIMH DSST)**. ArchiveFlow provides:
+- ✅ Complete LabArchives OAuth2 integration (~800 LOC)
+- ✅ TDT tank processing and signal pipelines (~1500 LOC)
+- ✅ 8-page Streamlit operator UI (~2000 LOC)
+- ✅ Tejeda Lab directory structure and custom widget parsers (~500 LOC)
+
+**Migration Strategy**: Phase -1 (2 weeks) will migrate the existing codebase from `uv` → `pixi`, Python 3.11 → 3.13, and Streamlit-only → FastAPI+Streamlit architecture while **preserving all working functionality**. This reduces overall implementation time by an estimated 30-40% (8-10 weeks saved).
+
 ## Technical Context
 
-**Language/Version**: Python 3.13 (NON-NEGOTIABLE)
-**Primary Dependencies**: FastAPI, Streamlit, pynwb, neuroconv, ndx-fiber-photometry, dandi-cli, elabapi-python, Celery, Redis, watchfiles
-**Storage**: Local filesystem (Phase 1), OneDrive/Box adapters (Phase 3), Redis for task queue state
+**Existing Codebase**: ArchiveFlow prototype by Josh Lawrimore (NIMH DSST) - `nimh-dsst/ArchiveFlow` (private)
+**Language/Version**: Python 3.13 (NON-NEGOTIABLE, upgrade from 3.11)
+**Primary Dependencies**: FastAPI (NEW), Streamlit (EXISTS), pynwb (EXISTS), neuroconv (EXISTS), ndx-fiber-photometry (EXISTS), dandi-cli, elabapi-python, Celery (NEW), Redis (NEW), watchfiles (upgrade from watchdog)
+**Storage**: Local filesystem (IMPLEMENTED), OneDrive/Box adapters (Phase 3)
 **Testing**: pytest with pytest-asyncio; E2E tests MUST use real ELN/DANDI APIs (no mocks)
 **Target Platform**: Linux server (production), Windows (development support)
-**Project Type**: Web application monorepo (backend API + operator UI + workers)
+**Project Type**: Web application monorepo (backend API + operator UI + workers) - MIGRATION from Streamlit-only architecture
 **Performance Goals**: <5 min sync latency (ELN → Dir), <10 sec metadata extraction, <10 min NWB packaging (P95), >95% DANDI upload success
 **Constraints**: NIH data governance (no PII exfiltration), NWB schema compliance, DANDI rate limits (chunked uploads <256 MiB), idempotent operations, structured logging with request_id/subject_id/entry_id
 **Scale/Scope**: 10+ concurrent experiments, datasets up to 10GB, multi-lab deployment, TDT tank + AnyMaze + video processing
+
+**Critical Migration Requirements**:
+- Migrate package manager: `uv` → `pixi` (constitution requirement)
+- Upgrade Python: 3.11 → 3.13 (constitution requirement)
+- Refactor architecture: Streamlit-only → FastAPI + Streamlit microservices
+- Preserve existing functionality: LabArchives integration, TDT processing, Tejeda directory structure, custom widget parsers
+- Extract reusable components: LabArchives API wrapper as separate PyPI package
 
 ## Constitution Check
 
@@ -62,8 +78,35 @@ specs/heet-dev/
 
 ### Source Code (repository root)
 
+**MIGRATION NOTE**: Existing `archiveflow/` module will be refactored into new structure while preserving functionality.
+
 ```text
-app/                                 # FastAPI backend
+archiveflow/                         # EXISTING CODE (to be refactored)
+├── api.py                           # LabArchives API wrapper → migrate to adapters/eln/labarchives/
+├── structure.py                     # Tejeda schemas → migrate to app/models/ and preserve
+├── behavior_widget.py               # Widget parser → migrate to adapters/eln/labarchives/parser.py
+├── tejeda_schemas.py                # TDT parsing → migrate to nwb/preprocessing/
+├── photometry.py                    # Signal processing → migrate to nwb/preprocessing/
+├── signal_processing.py             # → migrate to nwb/preprocessing/
+├── analysis.py                      # → preserve in nwb/analysis/
+├── app_extraction.py                # → refactor into workers/tasks/
+├── app_processing.py                # → refactor into workers/tasks/
+├── config.py                        # → migrate to app/config.py
+├── status.py                        # → migrate to app/services/
+└── utils.py                         # → migrate to app/utils/
+
+Login.py                             # EXISTING Streamlit OAuth entry → migrate to ui/
+pages/                               # EXISTING Streamlit pages → migrate to ui/pages/
+├── 1_Select_Experiment.py           # → ui/pages/1_Subjects.py (refactored)
+├── 2_Experiment_Status_and_Batch_Processing.py  # → ui/pages/1_Pipeline_Status.py
+├── 3_Manual_Extraction.py           # → merge into ui/pages/4_Manual_Triggers.py
+├── 4_Data_Processing.py             # → merge into ui/pages/4_Manual_Triggers.py
+├── 5_Behavior_Map.py                # → preserve in ui/pages/5_Behavior_Analysis.py (NEW)
+├── 6_Behavior_Analysis.py           # → preserve in ui/pages/5_Behavior_Analysis.py (NEW)
+├── 7_Subject_Status.py              # → ui/pages/2_Subjects.py
+└── 8_Data_Export.py                 # → merge into ui/pages/6_Export.py (NEW)
+
+app/                                 # FastAPI backend (NEW)
 ├── main.py                          # Application entry point, ASGI app factory
 ├── config.py                        # Configuration management (from env/secrets)
 ├── dependencies.py                  # Dependency injection (adapters, Redis client)
@@ -239,7 +282,106 @@ This structure supports:
 
 ## Complexity Tracking
 
-*No constitution violations - table omitted.*
+**Constitution Conflicts Requiring Migration**:
+
+| Violation | Required Change | Justification | Impact |
+|---|---|---|---|
+| Package Manager (`uv` → `pixi`) | Rewrite `pyproject.toml` and dependency management as `pixi.toml` | Constitution Principle IV (NON-NEGOTIABLE) | Medium - Affects all dependency installation, CI/CD, developer workflow |
+| Python Version (3.11 → 3.13) | Update all code, test compatibility, update CI images | Constitution Principle IV (NON-NEGOTIABLE) | Low-Medium - Mostly compatible, need to test for breaking changes |
+| Architecture (Streamlit-only → FastAPI+Streamlit) | Refactor into microservices, add FastAPI backend, extract business logic from UI | Constitution requirement for API endpoints (FR-020) | High - Major architectural change, but preserves existing UI functionality |
+
+**Refactoring Complexity**:
+
+| Component | Existing Lines | Migration Strategy | Risk |
+|---|---|---|---|
+| LabArchives API (`archiveflow/api.py`) | ~800 | Extract to `adapters/eln/labarchives/`, consider separate PyPI package | Low - Well-tested, isolated |
+| TDT Processing (`tejeda_schemas.py`, `photometry.py`) | ~1500 | Migrate to `nwb/preprocessing/`, preserve signal processing pipelines | Low - Isolated processing logic |
+| Streamlit UI (8 pages) | ~2000 | Refactor to call FastAPI backend, preserve UI/UX | Medium - Need to retrofit API calls |
+| Widget Parsers (`behavior_widget.py`) | ~500 | Preserve as-is in `adapters/eln/labarchives/parser.py` | Low - Tejeda-specific, stable |
+
+## Phase -1: Codebase Migration & Architecture Refactoring
+
+**NEW PHASE** (must complete before Phase 0)
+
+**Goal**: Migrate ArchiveFlow prototype to constitutional compliance and new architecture while preserving all working functionality.
+
+**Duration**: 2 weeks
+
+**Deliverables**:
+- `pixi.toml` with all dependencies migrated from `uv`
+- Python 3.13 compatibility verified
+- FastAPI backend skeleton with health endpoints
+- Refactored `adapters/eln/labarchives/` module from `archiveflow/api.py`
+- Preserved TDT processing in `nwb/preprocessing/`
+- Updated Streamlit UI to work with new structure
+- All existing tests passing
+
+### Migration Tasks
+
+**M-1: Package Manager Migration (`uv` → `pixi`)**
+- Extract all dependencies from `pyproject.toml` and `uv.lock`
+- Create `pixi.toml` with equivalent dependency specifications
+- Define pixi tasks: `api`, `ui`, `test`, `lint`, `fmt`, `typecheck`
+- Update all documentation and scripts to use `pixi run` commands
+- Update CI/CD workflows to use pixi
+- Remove `uv` references and lock files
+
+**M-2: Python Version Upgrade (3.11 → 3.13)**
+- Update `pixi.toml` to specify Python 3.13
+- Test all existing code for compatibility (focus on typing, asyncio changes)
+- Update type hints if needed for 3.13 strict mode
+- Update CI images to Python 3.13
+- Document any breaking changes or required code modifications
+
+**M-3: Directory Structure Refactoring**
+- Create new directory structure: `app/`, `ui/`, `workers/`, `adapters/`, `nwb/`, `dandi/`
+- Migrate `archiveflow/api.py` → `adapters/eln/labarchives/adapter.py`
+- Migrate `archiveflow/behavior_widget.py` → `adapters/eln/labarchives/parser.py`
+- Migrate `archiveflow/structure.py` → `app/models/` (preserve Tejeda schemas)
+- Migrate `archiveflow/tejeda_schemas.py` → `nwb/preprocessing/tdt_parser.py`
+- Migrate `archiveflow/photometry.py` → `nwb/preprocessing/signal_processing.py`
+- Migrate `archiveflow/config.py` → `app/config.py`
+- Migrate `archiveflow/status.py` → `app/services/status_service.py`
+- Preserve existing Streamlit pages in `ui/pages/` with minimal changes
+
+**M-4: FastAPI Backend Skeleton**
+- Create `app/main.py` with ASGI app factory
+- Implement health check endpoint: `GET /health`
+- Implement basic status endpoint: `GET /v1/status/{subject_id}`
+- Configure CORS for Streamlit UI access
+- Set up dependency injection for adapters
+- Add structured logging configuration (JSON format)
+
+**M-5: Streamlit UI Retrofit**
+- Update `ui/Home.py` (from `Login.py`) to work with new structure
+- Update page imports to reference new module structure
+- Test OAuth2 flow still works
+- Preserve all 8 existing pages with minimal changes
+- Document UI → API integration points for Phase 2
+
+**M-6: LabArchives API Wrapper Extraction (Optional)**
+- Evaluate feasibility of extracting `adapters/eln/labarchives/` as separate package
+- Document API surface for reusability
+- Defer actual PyPI publication to post-MVP
+- Ensure adapter implements Protocol interface for swappability
+
+**M-7: Test Migration**
+- Migrate existing tests to new structure
+- Update imports to reference new module paths
+- Ensure all unit tests pass with Python 3.13
+- Document any test failures or compatibility issues
+- Add pixi task: `pixi run test`
+
+**Acceptance Criteria**:
+- ✅ `pixi install` successfully installs all dependencies
+- ✅ `pixi run test` runs all existing tests and passes
+- ✅ Python 3.13 compatibility verified (no runtime errors)
+- ✅ FastAPI backend starts and responds to health checks
+- ✅ Streamlit UI starts and displays existing pages
+- ✅ LabArchives OAuth2 flow works end-to-end
+- ✅ TDT parsing and signal processing functions work unchanged
+- ✅ Constitution compliance: no `uv`, `pip`, `conda` references in codebase
+- ✅ All existing ArchiveFlow functionality preserved
 
 ## Phase 0: Research & Discovery
 
@@ -251,12 +393,13 @@ This structure supports:
 
 ### Research Areas
 
-1. **LabArchives API Integration**
-   - NIH-approved wrapper library API (authentication, rate limits, pagination)
-   - Entry retrieval methods (polling vs. webhooks)
-   - Attachment download mechanisms
-   - Status update/logging API (append notes/comments)
-   - Error handling and retry patterns
+1. **LabArchives API Integration** ✅ **MOSTLY COMPLETE** (validate and document)
+   - ✅ OAuth2 authentication implemented (`archiveflow/api.py`)
+   - ✅ Entry retrieval, notebook traversal working
+   - ✅ Custom widget parsing (BehaviorFormV4/V6) implemented
+   - 🟡 Document rate limits and pagination patterns (need formal testing)
+   - ❌ Status update/logging API (append notes) - needs implementation
+   - 🟡 Error handling exists, retry patterns need formalization
 
 2. **eLabFTW API Integration**
    - `elabapi-python` SDK authentication (API key management)
@@ -265,12 +408,13 @@ This structure supports:
    - Status field updates vs. comment appending
    - Differences from LabArchives API patterns
 
-3. **TDT Tank Data Processing**
-   - TDT tank folder structure (metadata files, data files, naming conventions)
-   - Existing libraries for TDT data reading (tdt-python, neo, etc.)
-   - Timestamp alignment requirements for fiber photometry data
-   - Sampling rate extraction and validation
-   - Integration with neuroconv TDTDataInterface (if available)
+3. **TDT Tank Data Processing** ✅ **IMPLEMENTED** (document and validate)
+   - ✅ TDT tank folder parser implemented (`archiveflow/tejeda_schemas.py`)
+   - ✅ Stream extraction: TTL events, 405A isosbestic, 470D experimental (`archiveflow/photometry.py`)
+   - ✅ Signal processing pipelines implemented (`archiveflow/signal_processing.py`)
+   - ✅ Timestamp alignment working for Tejeda Lab conventions
+   - 🟡 Document integration with neuroconv TDTDataInterface (validate compatibility)
+   - 🟡 Sampling rate extraction implemented, needs formal validation
 
 4. **NWB Schema Mapping (ndx-fiber-photometry)**
    - `ndx-fiber-photometry` extension schema (FiberPhotometry, FiberPhotometryResponseSeries)
@@ -279,12 +423,12 @@ This structure supports:
    - Multi-trial/multi-timepoint handling in NWB
    - pynwb validation requirements and common failure modes
 
-5. **File System Watcher Patterns**
-   - `watchfiles` library capabilities (recursive watching, event filtering)
-   - Readiness detection logic (all required files present for experiment type)
-   - Debouncing strategies (avoid triggering on partial uploads)
-   - Handling of large file uploads (video files, TDT tanks)
-   - Graceful handling of file deletions and modifications
+5. **File System Watcher Patterns** 🟡 **PARTIALLY IMPLEMENTED** (upgrade and automate)
+   - ✅ `watchdog` library used in ArchiveFlow (need to migrate to `watchfiles`)
+   - 🟡 Readiness detection exists but needs formalization (experiment type rules)
+   - 🟡 Manual trigger patterns exist, need automatic event-driven triggers
+   - 🟡 Large file handling tested informally, needs performance validation
+   - 🟡 File modification handling exists, needs edge case testing
 
 6. **DANDI Upload Best Practices**
    - `dandi-cli` vs. API usage (resumable uploads, chunking)
@@ -687,42 +831,51 @@ Write operator-facing quickstart guide covering:
 
 **Goal**: Demonstrate end-to-end pipeline with LabArchives and local filesystem storage.
 
+**ACCELERATED** due to existing ArchiveFlow implementation.
+
 **Scope**:
-- LabArchives ELN adapter (authentication, entry retrieval, status updates)
-- Local storage adapter (directory creation, manifest files)
-- FastAPI backend with sync, status, and health endpoints
-- Basic Streamlit UI (pipeline status view)
-- NWB packaging (pynwb + ndx-fiber-photometry) with TDT tank support
-- pynwb validation gate
-- Structured logging (JSON format)
-- Unit and integration tests
-- CI pipeline (lint, typecheck, unit, integration)
+- ✅ LabArchives ELN adapter (ALREADY IMPLEMENTED - migrate from `archiveflow/api.py`)
+- ✅ Local storage adapter (ALREADY IMPLEMENTED - migrate from `archiveflow/structure.py`)
+- ✅ TDT tank parsing (ALREADY IMPLEMENTED - migrate from `archiveflow/tejeda_schemas.py`)
+- ✅ Streamlit UI with 8 pages (ALREADY IMPLEMENTED - retrofit to call FastAPI)
+- 🆕 FastAPI backend with sync, status, and health endpoints (NEW)
+- 🆕 NWB packaging (pynwb + ndx-fiber-photometry) with existing TDT data (NEW - leverage existing preprocessing)
+- 🆕 pynwb validation gate (NEW)
+- 🟡 Structured logging (upgrade from existing logging to JSON format)
+- 🟡 Unit and integration tests (migrate existing tests)
+- 🆕 CI pipeline (lint, typecheck, unit, integration) (NEW)
 
 **Deliverables**:
-- Working LabArchives → Local Dir → NWB pipeline (manual data upload)
-- NWB files passing pynwb validation
-- API documentation (OpenAPI spec)
-- Developer setup guide (quickstart.md)
+- Working LabArchives → Local Dir → NWB pipeline (✅ Tejeda directory structure preserved)
+- NWB files passing pynwb validation (🆕 NEW)
+- API documentation (OpenAPI spec) (🆕 NEW)
+- Developer setup guide (quickstart.md) (🟡 Update existing README)
 
 **Acceptance Criteria**:
-- User Story 1 acceptance scenarios pass (ELN sync to directory)
-- User Story 3 acceptance scenarios pass (NWB generation and validation)
-- Constitution Gates 1, 4, 5, 6, 7 pass (NWB validation, Python 3.13, Pixi-only, E2E discipline, observability)
+- ✅ User Story 1 acceptance scenarios pass (ELN sync to directory) - ALREADY WORKING
+- 🆕 User Story 3 acceptance scenarios pass (NWB generation and validation) - NEW
+- ✅ Constitution Gates 1, 4, 5, 6, 7 pass (Python 3.13 after migration, Pixi-only)
+- ✅ Existing ArchiveFlow functionality preserved (OAuth, TDT parsing, UI)
+
+**Timeline Adjustment**: Expected 2-3 weeks instead of 4 due to substantial existing implementation.
 
 ### Milestone 2: Automation - Watcher + DANDI Upload (Weeks 5-8)
 
 **Goal**: Automate preprocessing trigger and DANDI upload with retry logic.
 
+**PARTIALLY ACCELERATED** due to existing preprocessing and watcher infrastructure.
+
 **Scope**:
-- File system watcher (watchfiles) with readiness detection
-- Celery workers (sync, preprocessing, packaging, upload tasks)
-- Redis broker configuration
-- DANDI uploader (dandi-cli wrapper with resumable uploads)
-- DANDI validation gate
-- Retry policies (exponential backoff, idempotency keys)
-- ELN status logging (upload success/failure)
-- Provenance tracking (Git SHA, pixi lock hash)
-- E2E tests (LabArchives + DANDI with real APIs)
+- 🟡 File system watcher (migrate `watchdog` → `watchfiles`, add automatic triggers)
+- ✅ Preprocessing logic (ALREADY IMPLEMENTED - wrap in Celery tasks)
+- 🆕 Celery workers (sync, preprocessing, packaging, upload tasks) (NEW)
+- 🆕 Redis broker configuration (NEW)
+- 🆕 DANDI uploader (dandi-cli wrapper with resumable uploads) (NEW)
+- 🆕 DANDI validation gate (NEW)
+- 🆕 Retry policies (exponential backoff, idempotency keys) (NEW)
+- 🟡 ELN status logging (upgrade existing status tracking to write back to LabArchives)
+- 🆕 Provenance tracking (Git SHA, pixi lock hash) (NEW)
+- 🆕 E2E tests (LabArchives + DANDI with real APIs) (NEW)
 
 **Deliverables**:
 - Automatic pipeline trigger on data readiness
@@ -1020,15 +1173,24 @@ Write operator-facing quickstart guide covering:
 
 ## Next Steps (Post-Planning)
 
-1. **Approve Plan**: Review plan.md with stakeholders and approve for implementation
-2. **Phase 0 Research**: Execute research phase (1 week) and produce research.md
-3. **Phase 1 Design**: Define data models, contracts, and quickstart guide (2 weeks)
-4. **Generate Tasks**: Run `/tasks` command to generate tasks.md from this plan
-5. **Milestone 1 Kickoff**: Begin implementation of LabArchives + Local NWB MVP (4 weeks)
+**UPDATED SEQUENCE** (reflects ArchiveFlow migration):
+
+1. **Approve Plan**: Review plan.md with stakeholders (Josh Lawrimore, DSST team, Tejeda Lab) and approve migration strategy
+2. **Phase -1 Migration** (2 weeks): Execute codebase migration (`uv` → `pixi`, Python 3.11 → 3.13, architecture refactoring)
+3. **Phase 0 Research** (1 week, ACCELERATED): Validate existing implementations, document LabArchives/TDT patterns, research NWB packaging
+4. **Phase 1 Design** (2 weeks): Define data models (leverage Tejeda schemas), contracts, update quickstart guide
+5. **Generate Tasks**: Run `/tasks` command to generate tasks.md from this plan
+6. **Milestone 1 Kickoff** (2-3 weeks, ACCELERATED): Complete NWB packaging using existing preprocessing
+
+**Key Stakeholder Approvals Needed**:
+- ✅ Josh Lawrimore: Acknowledge ArchiveFlow contribution, approve refactoring approach
+- ✅ Tejeda Lab: Approve directory structure preservation and workflow continuity
+- ✅ DSST Leadership: Approve timeline acceleration and resource allocation
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-10-27
+**Document Version**: 2.0 (Updated for ArchiveFlow Integration)
+**Last Updated**: 2025-10-29
 **Author**: Claude (via /plan command)
+**Original ArchiveFlow**: Josh Lawrimore (NIMH DSST)
 **Approved By**: [Pending Stakeholder Review]

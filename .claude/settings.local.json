@@ -3,7 +3,8 @@
     "allow": [
       "Bash(pixi init:*)",
       "Bash(pixi add:*)",
-      "SlashCommand(/constitution)"
+      "SlashCommand(/constitution)",
+      "Bash(unzip:*)"
     ],
     "deny": [],
     "ask": []
