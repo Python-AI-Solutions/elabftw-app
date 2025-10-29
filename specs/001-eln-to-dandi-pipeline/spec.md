@@ -3,23 +3,23 @@
 **Feature Branch**: `heet-dev`
 **Created**: 2025-10-27
 **Status**: Draft
-**Input**: User description: "NIH intramural investigators are required to transition to electronic records for all experiments. Dr. Tejeda's group currently uses LabArchives ELN to record fiber photometry behavioral experiments in mice. elabftw-app aims to semi-automate the pipeline from experimental recording to packaging in NWB format and uploading to the DANDI data repository. The system is developed by DSST with collaboration from MLT and should support both LabArchives and eLabFTW."
+**Input**: User description: "NIH intramural investigators are required to transition to electronic records for all experiments. Research laboratories conducting fiber photometry behavioral experiments in mice use ELN systems to record experimental protocols and results. elabftw-app aims to semi-automate the pipeline from experimental recording to packaging in NWB format and uploading to the DANDI data repository. The system is developed by DSST and should support both LabArchives and eLabFTW with a priority on eLabFTW for launch."
 
 ## Existing Implementation (ArchiveFlow Prototype)
 
 **Development Credit**: Original prototype developed by Josh Lawrimore (NIMH DSST)
 **Repository**: `nimh-dsst/ArchiveFlow` (private)
-**Status**: Partially implemented Streamlit-based prototype for Tejeda Lab workflows
+**Status**: Partially implemented Streamlit-based prototype for laboratory workflows
 
 ### Implemented Components
 
 ✅ **LabArchives Integration**
 - Full REST/XML API client (`archiveflow/api.py`) with OAuth2 authentication
 - Notebook/entry retrieval, directory traversal
-- Custom widget parser for BehaviorFormV4/V6 schemas (`archiveflow/behavior_widget.py`)
+- Custom widget parser for structured behavior form schemas (`archiveflow/behavior_widget.py`)
 - Trial table extraction and metadata parsing
 
-✅ **Tejeda Directory Structure**
+✅ **Laboratory Directory Structure**
 - Pydantic classes for Surgery/Behavior/Photometry/Histology/Metadata (`archiveflow/structure.py`)
 - Cohort management with standardized naming conventions
 - Directory creation and organization logic
@@ -60,17 +60,19 @@
 3. **Architecture**: Streamlit-only vs. required FastAPI + Streamlit microservices
 
 **Integration Strategy**:
-- Phase -1 (Migration) must handle `uv` → `pixi` conversion
+- Phase -1 (Migration) must handle `uv` → `pixi` conversion (gradual module-by-module migration)
+- Upgrade Python 3.11 → 3.13 directly (high risk, no pre-testing)
 - Refactor existing `archiveflow/` module into new structure (`app/`, `adapters/`, `nwb/`)
+- Create shared business logic layer callable by both Streamlit and FastAPI (DRY architecture)
 - Extract LabArchives API wrapper for separate PyPI package (reusability)
-- Preserve existing Tejeda Lab-specific schemas and widget parsers
-- Upgrade Python 3.11 → 3.13 (test for breaking changes)
+- Preserve existing lab-specific schemas and widget parsers as templates
+- Support hybrid sync strategy (webhooks preferred, polling as fallback)
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - ELN Entry Sync to Structured Directory (Priority: P1)
 
-A researcher completes an experiment entry in their ELN (LabArchives or eLabFTW). The system automatically detects the new entry, parses metadata (subject ID, experiment type, date, protocols), and creates a standardized directory structure on shared storage with appropriate subfolders for raw data, metadata spreadsheets, and analysis outputs.
+A researcher completes an experiment entry in their ELN (LabArchives or eLabFTW). The system semi-automatically detects the new entry, parses metadata (subject ID, experiment type, date, protocols), and upon manual approval creates a standardized directory structure on shared storage with appropriate subfolders for raw data, metadata spreadsheets, and analysis outputs. If file organization is ambiguous, the system auto-organizes files to correct locations with notifications to the researcher.
 
 **Why this priority**: This is the foundation of the entire pipeline. Without reliable metadata extraction and directory creation, no downstream automation is possible. It directly addresses the NIH electronic records mandate by establishing structured, traceable experimental records.
 
@@ -80,13 +82,15 @@ A researcher completes an experiment entry in their ELN (LabArchives or eLabFTW)
 
 **Acceptance Scenarios**:
 
-1. **Given** a researcher has completed a Surgery entry in LabArchives with subject ID "M001", **When** the system polls the LabArchives API, **Then** a directory `experiments/M001/surgery/YYYY-MM-DD/` is created with a metadata spreadsheet containing all parsed fields.
+1. **Given** a researcher has completed a Surgery entry in LabArchives with subject ID "M001", **When** the system polls the LabArchives API and manual approval is granted, **Then** a directory `experiments/M001/surgery/YYYY-MM-DD/` is created with a metadata spreadsheet containing all parsed fields.
 
-2. **Given** a researcher has completed a Behavior experiment entry in eLabFTW with subject "M002" and protocol "fear-conditioning", **When** the system detects the new entry, **Then** a directory `experiments/M002/behavior/fear-conditioning/YYYY-MM-DD/` is created with protocol files and metadata.
+2. **Given** a researcher has completed a Behavior experiment entry in eLabFTW with subject "M002" and protocol "fear-conditioning", **When** the system detects the new entry via webhook or polling and manual approval is granted, **Then** a directory `experiments/M002/behavior/fear-conditioning/YYYY-MM-DD/` is created with protocol files and metadata.
 
 3. **Given** an ELN entry contains nested metadata (multiple timepoints, drug doses), **When** the system parses the entry, **Then** all nested fields are correctly extracted into structured metadata spreadsheet with proper hierarchy.
 
 4. **Given** the directory structure already exists for a subject, **When** a new experiment entry is created for the same subject, **Then** the system adds a new timestamped subdirectory without overwriting existing data.
+
+5. **Given** files are uploaded to incorrect locations, **When** the system detects misplaced files, **Then** files are auto-organized to correct locations and the researcher receives a notification with the changes made.
 
 ---
 
@@ -114,7 +118,7 @@ A researcher or lab technician drops raw experimental data files (TDT tank folde
 
 ### User Story 3 - NWB File Generation and Validation (Priority: P3)
 
-The system packages experimental metadata and preprocessed data into an NWB-compliant file using the ndx-fiber-photometry extension. The NWB file passes pynwb validation and includes all required metadata fields, subject information, timestamps, and fiber photometry timeseries data.
+Upon manual approval, the system packages experimental metadata and preprocessed data into an NWB-compliant file using the ndx-fiber-photometry extension. The NWB scope (raw/processed/both) is configurable per experiment. The NWB file passes pynwb validation (using NWB Inspector tool, not static golden dataset) and includes all required metadata fields, subject information, timestamps, and fiber photometry timeseries data. Videos are handled as separate DANDI assets in MP4 format with light compression.
 
 **Why this priority**: NWB compliance is mandatory for DANDI upload and long-term data sharing. This story delivers the core scientific value—standardized, interoperable neuroscience data that can be reused by the community.
 
@@ -136,7 +140,7 @@ The system packages experimental metadata and preprocessed data into an NWB-comp
 
 ### User Story 4 - DANDI Archive Upload (Priority: P4)
 
-The system automatically uploads validated NWB files to a designated DANDI archive dataset (dandiset). Upload includes metadata validation, checksum verification, and retry logic for network failures. Upload status and DANDI asset IDs are logged back to the original ELN entry.
+After validation passes and manual approval is granted, the system automatically uploads validated NWB files and associated video assets to a designated DANDI archive dataset (dandiset). Error-free uploads are prioritized over speed. Upload includes metadata validation, checksum verification, and configurable retry logic per job type. Upload status and DANDI asset IDs are logged back to the original ELN entry. Researchers can pause the pipeline for specific experiments.
 
 **Why this priority**: This completes the data lifecycle from experiment to public archive, satisfying NIH data sharing requirements. It ensures reproducibility and enables external collaborators to access standardized datasets.
 
@@ -146,23 +150,27 @@ The system automatically uploads validated NWB files to a designated DANDI archi
 
 **Acceptance Scenarios**:
 
-1. **Given** a validated NWB file exists, **When** the DANDI upload process is initiated, **Then** the file is uploaded to the correct dandiset with all metadata fields populated and a DANDI asset ID is returned.
+1. **Given** a validated NWB file exists and manual approval is granted, **When** the DANDI upload process is initiated, **Then** the file is uploaded to the correct dandiset with all metadata fields populated and a DANDI asset ID is returned.
 
-2. **Given** a network error occurs during upload, **When** the upload fails, **Then** the system retries up to 3 times with exponential backoff and logs the failure state if all retries are exhausted.
+2. **Given** a network error occurs during upload, **When** the upload fails, **Then** the system retries using configurable retry policy (with exponential backoff) and logs the failure state if all retries are exhausted.
 
 3. **Given** an NWB file has been successfully uploaded to DANDI, **When** the upload completes, **Then** the system writes the DANDI asset URL and upload timestamp back to the original ELN entry as a comment or status field.
 
-4. **Given** multiple NWB files are queued for upload, **When** uploads are processed, **Then** they are handled sequentially or with rate limiting to avoid DANDI API throttling.
+4. **Given** multiple NWB files are queued for upload, **When** uploads are processed, **Then** error-free uploads are prioritized over speed, and workers scale dynamically to handle load.
+
+5. **Given** a researcher wants to pause the pipeline for an experiment, **When** the pause flag is set, **Then** all automated processing for that experiment stops until manually resumed.
+
+6. **Given** video files are associated with an experiment, **When** DANDI upload occurs, **Then** videos are uploaded as separate DANDI assets in MP4 format with light compression.
 
 ---
 
-### User Story 5 - Multi-ELN Backend Support (Priority: P5)
+### User Story 5 - Multi-ELN Backend Support (Priority: P2 - CRITICAL FOR LAUNCH)
 
 The system supports both LabArchives (NIH instance via wrapper) and eLabFTW through modular API adapter interfaces. Users can configure which ELN backend to use via environment configuration. All pipeline features (metadata sync, status updates, logging) work identically regardless of backend.
 
-**Why this priority**: Different NIH labs and external collaborators use different ELN systems. Modular support enables broader adoption and future extensibility without re-architecting the pipeline.
+**Why this priority**: eLabFTW support is CRITICAL for launch. Different NIH labs and external collaborators use different ELN systems. Modular support enables broader adoption and future extensibility without re-architecting the pipeline. Adapters use a hybrid design with standard interface plus optional ELN-specific extensions.
 
-**Implementation Status**: 🟡 **Partially Implemented** (LabArchives complete, eLabFTW not started, adapter interface exists informally)
+**Implementation Status**: 🟡 **Partially Implemented** (LabArchives complete, eLabFTW CRITICAL for M1/M2, adapter interface exists informally)
 
 **Independent Test**: Can be tested by configuring the system to use eLabFTW instead of LabArchives and running the full pipeline (User Stories 1-4) to verify identical functionality with different authentication and API calls.
 
@@ -197,7 +205,7 @@ The system supports both LabArchives (NIH instance via wrapper) and eLabFTW thro
 |---|---|---|
 | **FR-001** | System MUST authenticate with LabArchives NIH instance using secure token-based authentication via approved wrapper library. | ✅ **Implemented** |
 | **FR-002** | System MUST authenticate with eLabFTW using API key authentication via elabapi-python SDK. | ❌ **Not Implemented** |
-| **FR-003** | System MUST poll ELN APIs at configurable intervals (default: every 5 minutes) to detect new or updated experimental entries. | 🟡 **Partial** (manual polling only) |
+| **FR-003** | System MUST support hybrid sync strategy: webhooks preferred for real-time updates, polling as fallback at configurable intervals (default: every 60 seconds). | 🟡 **Partial** (manual polling only) |
 | **FR-004** | System MUST parse ELN entries to extract metadata fields including: subject ID, experiment type (Surgery, Behavior, Imaging), experiment date, protocol name, investigator name, and custom fields. | ✅ **Implemented** (LabArchives + custom widgets) |
 | **FR-005** | System MUST create standardized directory structures based on experiment type with predefined subfolder hierarchy (raw/, processed/, metadata/, analysis/). | ✅ **Implemented** (Tejeda schema) |
 | **FR-006** | System MUST generate metadata spreadsheets in CSV format containing all extracted ELN fields with timestamps and version information. | 🟡 **Partial** (metadata extraction exists, CSV generation needs work) |
@@ -214,7 +222,11 @@ The system supports both LabArchives (NIH instance via wrapper) and eLabFTW thro
 | **FR-017** | System MUST track sync latency (time from ELN entry creation to NWB generation) and expose metrics for monitoring. | 🟡 **Partial** (status tracking exists, metrics not exposed) |
 | **FR-018** | System MUST produce idempotent NWB files (re-running with identical inputs produces byte-identical outputs excluding timestamps). | ❌ **Not Implemented** |
 | **FR-019** | System MUST provide a Streamlit dashboard for operators to monitor pipeline status, view logs, and trigger manual interventions. | ✅ **Implemented** (8 pages with full UI) |
-| **FR-020** | System MUST provide API endpoints (FastAPI) for programmatic access to pipeline status and manual job submission. | ❌ **Not Implemented** (no FastAPI backend) |
+| **FR-020** | System MUST provide API endpoints (FastAPI) for programmatic access to pipeline status and manual job submission. NWB scope (raw/processed/both) must be configurable per experiment. | ❌ **Not Implemented** (no FastAPI backend) |
+| **FR-021** | System MUST enforce strict cohort naming conventions and reject non-compliant names with clear error messages. | ❌ **Not Implemented** |
+| **FR-022** | System MUST require manual approval before NWB generation and DANDI upload, with option for researchers to pause pipeline for specific experiments. | ❌ **Not Implemented** |
+| **FR-023** | System MUST handle video files as separate DANDI assets with MP4 format and light compression. Video assets are required for experiments with video data. | ❌ **Not Implemented** |
+| **FR-024** | System MUST scale workers dynamically to handle concurrent experiment processing without fixed capacity limits. | ❌ **Not Implemented** |
 
 ### Key Entities
 
@@ -232,12 +244,12 @@ The system supports both LabArchives (NIH instance via wrapper) and eLabFTW thro
 ### Measurable Outcomes
 
 - **SC-001**: Metadata handling time is reduced from 10+ minutes of manual spreadsheet entry to under 10 seconds automated extraction per experiment.
-- **SC-002**: Manual data packaging time is reduced by 95% (from hours to minutes) through automated NWB generation.
+- **SC-002**: Manual data packaging time is reduced by 95% (from hours to minutes) through automated NWB generation with configurable scope (raw/processed/both).
 - **SC-003**: 100% of fiber photometry experiments generate NWB files that pass pynwb validation.
 - **SC-004**: 100% of NWB files uploaded to DANDI include complete metadata and pass DANDI validation.
 - **SC-005**: Sync latency from ELN entry creation to NWB file generation averages under 5 minutes for standard fiber photometry sessions.
 - **SC-006**: DANDI upload success rate exceeds 95% (allowing for transient network failures with retry).
-- **SC-007**: All automated operations include provenance tracking (code versions logged in both NWB files and ELN entries).
+- **SC-007**: All automated operations include provenance tracking (code versions logged in both NWB files and ELN entries). NWB validation uses NWB Inspector tool, not static golden dataset.
 - **SC-008**: System supports concurrent processing of at least 10 experiment sessions without data corruption or race conditions.
 - **SC-009**: Researchers can view pipeline status for their experiments via dashboard within 10 seconds of accessing the interface.
 - **SC-010**: System maintains stable operation with both LabArchives and eLabFTW backends without requiring separate codebases.
@@ -246,19 +258,25 @@ The system supports both LabArchives (NIH instance via wrapper) and eLabFTW thro
 
 **Inherited from ArchiveFlow Prototype**:
 - LabArchives NIH instance API access is available with appropriate credentials and quota limits. ✅ **VALIDATED** (OAuth2 flow working)
-- TDT tank folder structure follows standard TDT data organization conventions. ✅ **VALIDATED** (parser implemented for Tejeda Lab conventions)
-- Tejeda Lab uses specific LabArchives custom widgets (BehaviorFormV4/V6) for structured metadata. ✅ **IMPLEMENTED** (widget parsers exist)
+- TDT tank folder structure follows standard TDT data organization conventions. ✅ **VALIDATED** (parser implemented)
+- Research laboratories use structured ELN forms for behavior experiment metadata. ✅ **IMPLEMENTED** (widget parsers exist)
 - Shared storage is local filesystem mounted with read/write permissions. ✅ **WORKING** (OneDrive/Box deferred)
 - Fiber photometry experiments use TDT systems with 405A (isosbestic) and 470D (experimental) streams. ✅ **IMPLEMENTED** (stream extraction working)
 
 **New Assumptions for Full Pipeline**:
 - eLabFTW instances are accessible via standard RESTful API with API key authentication.
+- eLabFTW support is CRITICAL for launch and must be prioritized in M1/M2.
 - DANDI archive dandiset exists and upload credentials are configured before system deployment.
 - NWB schema and ndx-fiber-photometry extension versions are pinned in environment configuration.
-- Network connectivity to ELN APIs and DANDI archive is generally reliable with occasional transient failures.
-- System operates in a trusted environment where file system access and API credentials are secured.
-- ArchiveFlow codebase can be migrated from `uv` to `pixi` and Python 3.11 to 3.13 without major breaking changes.
-- Existing Tejeda Lab directory structure (Surgery/Behavior/Photometry/Histology/Metadata with cohorts) will be preserved or minimally adapted.
+- Network connectivity to ELN APIs and DANDI archive supports hybrid sync strategy (webhooks preferred, polling as fallback).
+- System operates in a trusted environment where file system access and API credentials are secured via environment variables and `.env` files for MVP (modular for future cloud secrets manager migration).
+- ArchiveFlow codebase can be migrated from `uv` to `pixi` using gradual module-by-module approach.
+- Python 3.11 → 3.13 migration will be direct without pre-testing (high risk, fastest approach).
+- Existing laboratory directory structure (Surgery/Behavior/Photometry/Histology/Metadata with cohorts) will be preserved as default template with support for lab-specific customization.
+- NIH-wide directory schema standards require research before committing to specific structure (decision deferred).
+- Video files will be compressed with MP4 format and uploaded as separate DANDI assets.
+- PII/PHI will be included in NWB files as required for compliance.
+- E2E testing will run on production systems with clearly marked test data on every commit.
 
 ## Constraints & Policies *(optional)*
 
@@ -306,9 +324,9 @@ The system supports both LabArchives (NIH instance via wrapper) and eLabFTW thro
 ## Summary: ArchiveFlow Integration Impact
 
 **What We Have** (thanks to Josh Lawrimore's ArchiveFlow prototype):
-- ✅ Complete LabArchives OAuth2 integration with custom widget parsing (BehaviorFormV4/V6)
+- ✅ Complete LabArchives OAuth2 integration with custom widget parsing for structured forms
 - ✅ Production-tested TDT tank processing with stream extraction (405A, 470D, TTL)
-- ✅ Tejeda Lab-specific directory structure with Surgery/Behavior/Photometry/Histology/Metadata organization
+- ✅ Laboratory-specific directory structure template with Surgery/Behavior/Photometry/Histology/Metadata organization
 - ✅ 8-page Streamlit operator UI with manual intervention capabilities
 - ✅ Signal processing pipelines for fiber photometry data
 - ✅ File watching infrastructure (watchdog library)
@@ -325,10 +343,11 @@ The system supports both LabArchives (NIH instance via wrapper) and eLabFTW thro
 - ❌ Provenance tracking (Git SHA → NWB + ELN)
 
 **Critical Migration Steps**:
-1. **Phase -1**: Migrate `uv` → `pixi`, Python 3.11 → 3.13, refactor architecture
-2. **Preserve**: All existing Tejeda Lab workflows, custom parsers, directory structure
+1. **Phase -1**: Migrate `uv` → `pixi` (gradual module-by-module), Python 3.11 → 3.13 (direct, high risk), refactor architecture with shared business logic layer
+2. **Preserve**: All existing laboratory workflows, custom parsers, directory structure templates
 3. **Extract**: LabArchives API wrapper as reusable component
-4. **Extend**: Add FastAPI backend, NWB packaging, DANDI upload, eLabFTW support
+4. **Extend**: Add FastAPI backend, NWB packaging with configurable scope, DANDI upload with video handling, eLabFTW support (CRITICAL for launch)
+5. **Rollback Strategy**: Keep `archiveflow-legacy` branch frozen for rollback; test coverage includes smoke tests for critical paths
 
 **Timeline Impact**: Estimated 30-40% reduction in implementation time due to existing:
 - LabArchives integration (would take 3-4 weeks to build from scratch)

@@ -5,37 +5,39 @@
 
 ## Summary
 
-elabftw-app automates the protocol-to-publication workflow for NIH neuroscience investigators conducting fiber photometry behavioral experiments. The system integrates Electronic Lab Notebooks (LabArchives NIH instance and eLabFTW) with structured storage directories, automatically generates NWB-compliant files with ndx-fiber-photometry metadata, and uploads them to the DANDI data repository.
+elabftw-app automates the protocol-to-publication workflow for NIH neuroscience investigators conducting fiber photometry behavioral experiments. The system integrates Electronic Lab Notebooks (LabArchives NIH instance and eLabFTW, with eLabFTW being CRITICAL for launch) with structured storage directories, semi-automatically generates NWB-compliant files with ndx-fiber-photometry metadata after manual approval, and uploads them to the DANDI data repository with video handling as separate assets.
 
-**Technical Approach**: Microservices architecture with FastAPI backend for API orchestration, Streamlit operator UI for monitoring, Celery workers for long-running packaging/upload jobs, watchfiles-based directory monitoring for data readiness detection, modular ELN and storage adapters for multi-backend support, and pynwb/neuroconv for NWB generation with ndx-fiber-photometry extension. All operations are idempotent with structured logging and provenance tracking back to ELN entries.
+**Technical Approach**: Microservices architecture with FastAPI backend for API orchestration and shared business logic layer (DRY architecture callable by both API and UI), Streamlit operator UI for monitoring and manual approval gates, Celery workers with dynamic scaling for long-running packaging/upload jobs, hybrid sync strategy (webhooks preferred, polling as fallback), configurable retry policies per job type, watchfiles-based directory monitoring for data readiness detection, modular ELN and storage adapters for multi-backend support, and pynwb/neuroconv for NWB generation with ndx-fiber-photometry extension and configurable scope (raw/processed/both). All operations are idempotent with structured logging and provenance tracking back to ELN entries.
 
 **ArchiveFlow Integration**: This implementation plan builds upon the **ArchiveFlow prototype** developed by **Josh Lawrimore (NIMH DSST)**. ArchiveFlow provides:
 - ✅ Complete LabArchives OAuth2 integration (~800 LOC)
 - ✅ TDT tank processing and signal pipelines (~1500 LOC)
 - ✅ 8-page Streamlit operator UI (~2000 LOC)
-- ✅ Tejeda Lab directory structure and custom widget parsers (~500 LOC)
+- ✅ Laboratory directory structure template and custom widget parsers (~500 LOC)
 
-**Migration Strategy**: Phase -1 (2 weeks) will migrate the existing codebase from `uv` → `pixi`, Python 3.11 → 3.13, and Streamlit-only → FastAPI+Streamlit architecture while **preserving all working functionality**. This reduces overall implementation time by an estimated 30-40% (8-10 weeks saved).
+**Migration Strategy**: Phase -1 (2 weeks) will migrate the existing codebase from `uv` → `pixi` (gradual module-by-module approach), Python 3.11 → 3.13 (direct migration, high risk), and Streamlit-only → FastAPI+Streamlit architecture with shared business logic layer while **preserving all working functionality**. This reduces overall implementation time by an estimated 30-40% (8-10 weeks saved). Rollback strategy uses frozen `archiveflow-legacy` branch.
 
 ## Technical Context
 
 **Existing Codebase**: ArchiveFlow prototype by Josh Lawrimore (NIMH DSST) - `nimh-dsst/ArchiveFlow` (private)
-**Language/Version**: Python 3.13 (NON-NEGOTIABLE, upgrade from 3.11)
-**Primary Dependencies**: FastAPI (NEW), Streamlit (EXISTS), pynwb (EXISTS), neuroconv (EXISTS), ndx-fiber-photometry (EXISTS), dandi-cli, elabapi-python, Celery (NEW), Redis (NEW), watchfiles (upgrade from watchdog)
+**Language/Version**: Python 3.13 (NON-NEGOTIABLE, direct upgrade from 3.11, high risk, no pre-testing)
+**Primary Dependencies**: FastAPI (NEW with shared business logic layer), Streamlit (EXISTS), pynwb (EXISTS), neuroconv (EXISTS), ndx-fiber-photometry (EXISTS), dandi-cli, elabapi-python (CRITICAL for launch), Celery (NEW with dynamic scaling), Redis (NEW), watchfiles (upgrade from watchdog)
 **Storage**: Local filesystem (IMPLEMENTED), OneDrive/Box adapters (Phase 3)
-**Testing**: pytest with pytest-asyncio; E2E tests MUST use real ELN/DANDI APIs (no mocks)
+**Testing**: pytest with pytest-asyncio; E2E tests run on production systems with clearly marked test data on every commit (NO MOCKS)
 **Target Platform**: Linux server (production), Windows (development support)
-**Project Type**: Web application monorepo (backend API + operator UI + workers) - MIGRATION from Streamlit-only architecture
-**Performance Goals**: <5 min sync latency (ELN → Dir), <10 sec metadata extraction, <10 min NWB packaging (P95), >95% DANDI upload success
-**Constraints**: NIH data governance (no PII exfiltration), NWB schema compliance, DANDI rate limits (chunked uploads <256 MiB), idempotent operations, structured logging with request_id/subject_id/entry_id
-**Scale/Scope**: 10+ concurrent experiments, datasets up to 10GB, multi-lab deployment, TDT tank + AnyMaze + video processing
+**Project Type**: Web application monorepo (backend API + operator UI + workers) - MIGRATION from Streamlit-only architecture with semi-automatic workflow and manual approval gates
+**Performance Goals**: <5 min sync latency (ELN → Dir), <10 sec metadata extraction, <10 min NWB packaging (P95), >95% DANDI upload success, error-free uploads prioritized over speed
+**Constraints**: NIH data governance (PII/PHI included as required for NWB compliance), NWB schema compliance with configurable scope (raw/processed/both), DANDI rate limits (chunked uploads <256 MiB), idempotent operations, structured logging with request_id/subject_id/entry_id, video handling as separate MP4 assets
+**Scale/Scope**: Dynamic worker scaling (no fixed limit), datasets up to 10GB, multi-lab deployment, TDT tank + AnyMaze + video processing with MP4 compression, hybrid sync (webhooks + polling)
 
 **Critical Migration Requirements**:
-- Migrate package manager: `uv` → `pixi` (constitution requirement)
-- Upgrade Python: 3.11 → 3.13 (constitution requirement)
-- Refactor architecture: Streamlit-only → FastAPI + Streamlit microservices
-- Preserve existing functionality: LabArchives integration, TDT processing, Tejeda directory structure, custom widget parsers
+- Migrate package manager: `uv` → `pixi` (gradual module-by-module, constitution requirement)
+- Upgrade Python: 3.11 → 3.13 (direct, high risk, no pre-testing, constitution requirement)
+- Refactor architecture: Streamlit-only → FastAPI + Streamlit microservices with shared business logic layer (DRY)
+- Preserve existing functionality: LabArchives integration, TDT processing, laboratory directory structure templates, custom widget parsers
 - Extract reusable components: LabArchives API wrapper as separate PyPI package
+- Add eLabFTW support: CRITICAL for launch, move to M1/M2 from M3
+- Rollback strategy: Keep `archiveflow-legacy` branch frozen, smoke tests for critical paths
 
 ## Constitution Check
 
@@ -326,23 +328,26 @@ This structure supports:
 - Update CI/CD workflows to use pixi
 - Remove `uv` references and lock files
 
-**M-2: Python Version Upgrade (3.11 → 3.13)**
+**M-2: Python Version Upgrade (3.11 → 3.13) - DIRECT MIGRATION, HIGH RISK**
 - Update `pixi.toml` to specify Python 3.13
-- Test all existing code for compatibility (focus on typing, asyncio changes)
+- Direct migration without pre-testing (fastest approach, high risk)
 - Update type hints if needed for 3.13 strict mode
 - Update CI images to Python 3.13
-- Document any breaking changes or required code modifications
+- Document any breaking changes or required code modifications as they occur
+- Accept risk of runtime failures in exchange for faster migration
 
-**M-3: Directory Structure Refactoring**
+**M-3: Directory Structure Refactoring with Shared Business Logic Layer**
 - Create new directory structure: `app/`, `ui/`, `workers/`, `adapters/`, `nwb/`, `dandi/`
+- Create `app/services/` as shared business logic layer callable by both FastAPI and Streamlit (DRY architecture)
 - Migrate `archiveflow/api.py` → `adapters/eln/labarchives/adapter.py`
 - Migrate `archiveflow/behavior_widget.py` → `adapters/eln/labarchives/parser.py`
-- Migrate `archiveflow/structure.py` → `app/models/` (preserve Tejeda schemas)
+- Migrate `archiveflow/structure.py` → `app/models/` (preserve laboratory directory schemas as templates)
 - Migrate `archiveflow/tejeda_schemas.py` → `nwb/preprocessing/tdt_parser.py`
 - Migrate `archiveflow/photometry.py` → `nwb/preprocessing/signal_processing.py`
 - Migrate `archiveflow/config.py` → `app/config.py`
 - Migrate `archiveflow/status.py` → `app/services/status_service.py`
 - Preserve existing Streamlit pages in `ui/pages/` with minimal changes
+- Extract business logic from UI components into shared services layer
 
 **M-4: FastAPI Backend Skeleton**
 - Create `app/main.py` with ASGI app factory
@@ -365,23 +370,35 @@ This structure supports:
 - Defer actual PyPI publication to post-MVP
 - Ensure adapter implements Protocol interface for swappability
 
-**M-7: Test Migration**
+**M-7: Test Migration with Smoke Tests**
 - Migrate existing tests to new structure
 - Update imports to reference new module paths
 - Ensure all unit tests pass with Python 3.13
+- Add smoke tests covering critical paths for rollback validation
 - Document any test failures or compatibility issues
 - Add pixi task: `pixi run test`
+- Configure E2E tests to run on production systems with clearly marked test data
+
+**M-8: eLabFTW Adapter Implementation (MOVED FROM M3, CRITICAL FOR LAUNCH)**
+- Implement eLabFTW adapter using elabapi-python SDK
+- API key authentication and entry retrieval
+- Metadata parsing from eLabFTW entries (RESTful API)
+- Hybrid design: standard interface with optional eLabFTW-specific extensions
+- Status update logging to eLabFTW entries
+- Unit and integration tests for eLabFTW adapter
+- This is CRITICAL and must be completed in M1/M2 timeline
 
 **Acceptance Criteria**:
-- ✅ `pixi install` successfully installs all dependencies
-- ✅ `pixi run test` runs all existing tests and passes
-- ✅ Python 3.13 compatibility verified (no runtime errors)
-- ✅ FastAPI backend starts and responds to health checks
-- ✅ Streamlit UI starts and displays existing pages
+- ✅ `pixi install` successfully installs all dependencies (gradual module-by-module migration)
+- ✅ `pixi run test` runs all existing tests and passes (including smoke tests)
+- ✅ Python 3.13 compatibility verified (accepting high risk of runtime issues)
+- ✅ FastAPI backend starts with shared business logic layer and responds to health checks
+- ✅ Streamlit UI starts, displays existing pages, and calls shared business logic
 - ✅ LabArchives OAuth2 flow works end-to-end
 - ✅ TDT parsing and signal processing functions work unchanged
 - ✅ Constitution compliance: no `uv`, `pip`, `conda` references in codebase
 - ✅ All existing ArchiveFlow functionality preserved
+- ✅ `archiveflow-legacy` branch frozen for rollback strategy
 
 ## Phase 0: Research & Discovery
 
@@ -396,52 +413,65 @@ This structure supports:
 1. **LabArchives API Integration** ✅ **MOSTLY COMPLETE** (validate and document)
    - ✅ OAuth2 authentication implemented (`archiveflow/api.py`)
    - ✅ Entry retrieval, notebook traversal working
-   - ✅ Custom widget parsing (BehaviorFormV4/V6) implemented
+   - ✅ Custom widget parsing for structured behavior forms implemented
    - 🟡 Document rate limits and pagination patterns (need formal testing)
    - ❌ Status update/logging API (append notes) - needs implementation
-   - 🟡 Error handling exists, retry patterns need formalization
+   - 🟡 Error handling exists, retry patterns need formalization with configurable policies
 
-2. **eLabFTW API Integration**
+2. **eLabFTW API Integration - CRITICAL FOR LAUNCH**
    - `elabapi-python` SDK authentication (API key management)
    - Entry retrieval and filtering (by date, user, tags)
    - Metadata extraction from structured fields and Markdown content
+   - Hybrid adapter design: standard interface with optional eLabFTW-specific extensions
    - Status field updates vs. comment appending
+   - Webhook support for real-time updates (preferred over polling)
    - Differences from LabArchives API patterns
+   - THIS IS CRITICAL and moved to M1/M2 priority
 
 3. **TDT Tank Data Processing** ✅ **IMPLEMENTED** (document and validate)
    - ✅ TDT tank folder parser implemented (`archiveflow/tejeda_schemas.py`)
    - ✅ Stream extraction: TTL events, 405A isosbestic, 470D experimental (`archiveflow/photometry.py`)
    - ✅ Signal processing pipelines implemented (`archiveflow/signal_processing.py`)
-   - ✅ Timestamp alignment working for Tejeda Lab conventions
+   - ✅ Timestamp alignment working for laboratory conventions
    - 🟡 Document integration with neuroconv TDTDataInterface (validate compatibility)
    - 🟡 Sampling rate extraction implemented, needs formal validation
 
-4. **NWB Schema Mapping (ndx-fiber-photometry)**
+4. **NWB Schema Mapping (ndx-fiber-photometry) with Configurable Scope**
    - `ndx-fiber-photometry` extension schema (FiberPhotometry, FiberPhotometryResponseSeries)
    - Required metadata fields (subject, session, timestamps, acquisition device)
    - Mapping from TDT tank + ELN metadata → NWB structure
+   - Configurable NWB scope per experiment: raw/processed/both
    - Multi-trial/multi-timepoint handling in NWB
-   - pynwb validation requirements and common failure modes
+   - pynwb validation using NWB Inspector tool (not static golden dataset)
+   - Video handling as separate DANDI assets (MP4 format with light compression)
 
-5. **File System Watcher Patterns** 🟡 **PARTIALLY IMPLEMENTED** (upgrade and automate)
+5. **File System Watcher Patterns with Auto-Organization** 🟡 **PARTIALLY IMPLEMENTED** (upgrade and automate)
    - ✅ `watchdog` library used in ArchiveFlow (need to migrate to `watchfiles`)
    - 🟡 Readiness detection exists but needs formalization (experiment type rules)
-   - 🟡 Manual trigger patterns exist, need automatic event-driven triggers
-   - 🟡 Large file handling tested informally, needs performance validation
+   - 🟡 Manual trigger patterns exist, need semi-automatic event-driven triggers with approval gates
+   - 🟡 Large file handling tested informally, needs performance validation for video files
    - 🟡 File modification handling exists, needs edge case testing
+   - 🆕 Auto-organize misplaced files to correct locations with researcher notifications
+   - 🆕 Strict cohort naming enforcement with rejection of non-compliant names
 
-6. **DANDI Upload Best Practices**
+6. **DANDI Upload Best Practices with Video Handling**
    - `dandi-cli` vs. API usage (resumable uploads, chunking)
    - Dandiset metadata YAML structure and validation
    - Rate limiting and throttling strategies
-   - Checksum verification and retry logic
+   - Configurable retry logic per job type (not fixed 3 retries)
+   - Error-free uploads prioritized over speed
+   - Checksum verification and retry failed only (not all)
    - Asset ID retrieval and logging back to ELN
+   - Video assets as separate DANDI uploads (MP4 format, light compression, required)
 
-7. **Celery Architecture for Long-Running Jobs**
+7. **Celery Architecture for Long-Running Jobs with Dynamic Scaling**
    - Redis broker configuration (persistence, memory limits)
    - Task routing (separate queues for sync, preprocessing, packaging, upload)
-   - Retry policies (exponential backoff, max retries, dead-letter queue)
+   - Configurable retry policies per job type (exponential backoff, max retries, dead-letter queue)
    - Idempotency key patterns (composite keys: subject_id + session_date)
+   - Dynamic worker scaling (no fixed capacity limit)
+   - Manual approval gates before NWB generation and upload
+   - Researcher-controlled pipeline pause for specific experiments
    - Task monitoring and observability (Flower, structured logging)
 
 8. **Multi-Storage Backend Patterns**
@@ -835,29 +865,33 @@ Write operator-facing quickstart guide covering:
 
 **Scope**:
 - ✅ LabArchives ELN adapter (ALREADY IMPLEMENTED - migrate from `archiveflow/api.py`)
+- 🆕 eLabFTW ELN adapter (CRITICAL FOR LAUNCH - moved from M3 to M1)
 - ✅ Local storage adapter (ALREADY IMPLEMENTED - migrate from `archiveflow/structure.py`)
 - ✅ TDT tank parsing (ALREADY IMPLEMENTED - migrate from `archiveflow/tejeda_schemas.py`)
-- ✅ Streamlit UI with 8 pages (ALREADY IMPLEMENTED - retrofit to call FastAPI)
-- 🆕 FastAPI backend with sync, status, and health endpoints (NEW)
-- 🆕 NWB packaging (pynwb + ndx-fiber-photometry) with existing TDT data (NEW - leverage existing preprocessing)
-- 🆕 pynwb validation gate (NEW)
+- ✅ Streamlit UI with 8 pages (ALREADY IMPLEMENTED - retrofit to call shared business logic layer)
+- 🆕 FastAPI backend with sync, status, health endpoints and shared business logic layer (NEW)
+- 🆕 NWB packaging with configurable scope (raw/processed/both) using pynwb + ndx-fiber-photometry (NEW)
+- 🆕 pynwb validation using NWB Inspector tool (NEW)
 - 🟡 Structured logging (upgrade from existing logging to JSON format)
-- 🟡 Unit and integration tests (migrate existing tests)
-- 🆕 CI pipeline (lint, typecheck, unit, integration) (NEW)
+- 🟡 Unit and integration tests (migrate existing tests, add smoke tests)
+- 🆕 CI pipeline (lint, typecheck, unit, integration) with E2E on production systems (NEW)
 
 **Deliverables**:
-- Working LabArchives → Local Dir → NWB pipeline (✅ Tejeda directory structure preserved)
-- NWB files passing pynwb validation (🆕 NEW)
+- Working LabArchives/eLabFTW → Local Dir → NWB pipeline (✅ Laboratory directory structure template preserved)
+- NWB files with configurable scope passing NWB Inspector validation (🆕 NEW)
 - API documentation (OpenAPI spec) (🆕 NEW)
 - Developer setup guide (quickstart.md) (🟡 Update existing README)
+- eLabFTW adapter fully functional (CRITICAL)
 
 **Acceptance Criteria**:
-- ✅ User Story 1 acceptance scenarios pass (ELN sync to directory) - ALREADY WORKING
-- 🆕 User Story 3 acceptance scenarios pass (NWB generation and validation) - NEW
-- ✅ Constitution Gates 1, 4, 5, 6, 7 pass (Python 3.13 after migration, Pixi-only)
+- ✅ User Story 1 acceptance scenarios pass (ELN sync to directory with manual approval) - UPGRADE FROM EXISTING
+- 🆕 User Story 3 acceptance scenarios pass (NWB generation with configurable scope and validation) - NEW
+- 🆕 User Story 5 acceptance scenarios pass (eLabFTW support, CRITICAL) - NEW
+- ✅ Constitution Gates 1, 4, 5, 6, 7 pass (Python 3.13 after direct migration, Pixi-only)
 - ✅ Existing ArchiveFlow functionality preserved (OAuth, TDT parsing, UI)
+- 🆕 Shared business logic layer callable by both API and UI
 
-**Timeline Adjustment**: Expected 2-3 weeks instead of 4 due to substantial existing implementation.
+**Timeline Adjustment**: Expected 3-4 weeks due to eLabFTW adapter being CRITICAL and moved into M1.
 
 ### Milestone 2: Automation - Watcher + DANDI Upload (Weeks 5-8)
 
@@ -866,80 +900,95 @@ Write operator-facing quickstart guide covering:
 **PARTIALLY ACCELERATED** due to existing preprocessing and watcher infrastructure.
 
 **Scope**:
-- 🟡 File system watcher (migrate `watchdog` → `watchfiles`, add automatic triggers)
+- 🟡 File system watcher (migrate `watchdog` → `watchfiles`, add semi-automatic triggers with manual approval gates)
+- 🆕 Auto-organization of misplaced files with notifications
+- 🆕 Strict cohort naming enforcement
 - ✅ Preprocessing logic (ALREADY IMPLEMENTED - wrap in Celery tasks)
-- 🆕 Celery workers (sync, preprocessing, packaging, upload tasks) (NEW)
+- 🆕 Celery workers with dynamic scaling (sync, preprocessing, packaging, upload tasks) (NEW)
 - 🆕 Redis broker configuration (NEW)
-- 🆕 DANDI uploader (dandi-cli wrapper with resumable uploads) (NEW)
+- 🆕 DANDI uploader with video handling (dandi-cli wrapper with resumable uploads, MP4 compression) (NEW)
 - 🆕 DANDI validation gate (NEW)
-- 🆕 Retry policies (exponential backoff, idempotency keys) (NEW)
-- 🟡 ELN status logging (upgrade existing status tracking to write back to LabArchives)
+- 🆕 Configurable retry policies per job type (exponential backoff, idempotency keys, retry failed only) (NEW)
+- 🆕 Manual approval UI components before NWB generation and upload (NEW)
+- 🆕 Researcher-controlled pipeline pause functionality (NEW)
+- 🟡 ELN status logging (upgrade existing status tracking to write back to LabArchives/eLabFTW)
 - 🆕 Provenance tracking (Git SHA, pixi lock hash) (NEW)
-- 🆕 E2E tests (LabArchives + DANDI with real APIs) (NEW)
+- 🆕 E2E tests (LabArchives/eLabFTW + DANDI with real APIs on production systems) (NEW)
 
 **Deliverables**:
-- Automatic pipeline trigger on data readiness
-- DANDI upload with retry and resumption
+- Semi-automatic pipeline trigger on data readiness with manual approval gates
+- Auto-organization of misplaced files with notifications
+- DANDI upload with configurable retry, video handling, and error-free prioritization
+- Dynamic worker scaling with no fixed capacity limit
+- Researcher-controlled pipeline pause functionality
 - Provenance records in NWB and ELN
-- E2E test suite (may be marked blocked if credentials unavailable)
+- E2E test suite running on production systems with clearly marked test data
 
 **Acceptance Criteria**:
-- User Story 2 acceptance scenarios pass (watcher trigger)
-- User Story 4 acceptance scenarios pass (DANDI upload)
+- User Story 2 acceptance scenarios pass (watcher trigger with auto-organization)
+- User Story 4 acceptance scenarios pass (DANDI upload with manual approval and video handling)
 - Constitution Gates 2, 3, 6 pass (DANDI dry-run, spec alignment, idempotency)
-- DANDI upload success rate >95% in testing
+- DANDI upload success rate >95% with error-free uploads prioritized
+- Workers scale dynamically without hitting fixed capacity limits
+- Manual approval gates functional in UI
 
-### Milestone 3: Multi-Backend Support (Weeks 9-12)
+### Milestone 3: Storage Backend Support (Weeks 9-12)
 
-**Goal**: Add eLabFTW ELN support and OneDrive/Box storage adapters.
+**Goal**: Add OneDrive/Box storage adapters and enhance observability.
+
+**NOTE**: eLabFTW support moved to M1 as CRITICAL for launch.
 
 **Scope**:
-- eLabFTW ELN adapter (elabapi-python integration)
-- Adapter selection via configuration (environment variables)
 - OneDrive storage adapter (OAuth2, file upload/download)
 - Box storage adapter (OAuth2, file upload/download)
-- Multi-backend E2E tests (eLabFTW + local, LabArchives + OneDrive)
+- Hybrid sync strategy implementation (webhooks preferred, polling as fallback)
+- Enhanced observability (sync latency metrics, upload success rate tracking)
+- Multi-storage E2E tests (LabArchives + OneDrive, eLabFTW + Box)
 - Adapter interface documentation
 
 **Deliverables**:
-- Working eLabFTW → Local/OneDrive/Box → NWB → DANDI pipeline
+- Working LabArchives/eLabFTW → OneDrive/Box → NWB → DANDI pipeline
+- Hybrid sync strategy (webhooks + polling) fully functional
+- Enhanced metrics and monitoring dashboards
 - Adapter selection documentation (quickstart.md update)
 - Multi-backend test suite
 
 **Acceptance Criteria**:
-- User Story 5 acceptance scenarios pass (multi-ELN support)
-- Pipeline functions identically with LabArchives and eLabFTW
 - Storage adapters pass contract compliance tests
-- Constitution Gate 3 pass (multi-ELN modular design)
+- Hybrid sync strategy works with both webhook and polling modes
+- Observability metrics tracked (sync latency <5 min P95, upload success >95%)
+- Constitution Gate 3 pass (multi-backend modular design)
 
 ### Milestone 4: Production Hardening (Weeks 13-16)
 
 **Goal**: Prepare for production deployment with monitoring, security, and operational tooling.
 
 **Scope**:
-- Secrets management (environment variables + secrets manager integration stubs)
-- Enhanced observability (sync latency metrics, upload success rate tracking)
-- Streamlit dashboard enhancements (log filtering, manual job triggers)
+- Secrets management (environment variables + `.env` for MVP, modular stubs for cloud migration)
+- Streamlit dashboard enhancements (log filtering, manual job triggers, approval interfaces)
 - Docker images (API, UI, worker)
 - Kubernetes manifests (deployments, services, ingress)
-- CI/CD pipeline (Docker build, push, deploy)
+- CI/CD pipeline (Docker build, push, deploy) with E2E on production systems
 - Pre-commit hooks (ruff, mypy, secrets detection)
-- Production runbooks (onboarding, token rotation, troubleshooting)
-- Golden dataset E2E test (CI gate)
+- Production runbooks (onboarding, token rotation, troubleshooting, lab-specific customization)
+- NWB Inspector validation in CI (not static golden dataset)
 
 **Deliverables**:
 - Production-ready container images
 - Kubernetes deployment manifests
-- Operator runbooks
-- Full CI/CD pipeline with constitution gates
+- Operator runbooks (including lab-specific customization guides)
+- Full CI/CD pipeline with constitution gates and E2E on production systems
 - Security audit (secrets scanning, dependency vulnerabilities)
 
 **Acceptance Criteria**:
 - All constitution gates pass in CI
-- Golden dataset E2E test passes (NWB validation + DANDI dry-run)
+- NWB Inspector validation passes in CI (not static golden dataset)
+- E2E tests run on production systems with clearly marked test data
 - Docker images build and run successfully
-- Observability metrics tracked (sync latency <5 min P95)
+- Observability metrics tracked (sync latency <5 min P95, error-free uploads prioritized)
 - Pre-commit hooks prevent secret commits
+- Manual approval gates fully functional
+- Video handling as separate MP4 assets validated
 
 ## Testing Strategy
 
@@ -974,36 +1023,35 @@ Write operator-facing quickstart guide covering:
 
 **Run Command**: `pixi run integration`
 
-### E2E Tests (Real Systems - NO MOCKS)
+### E2E Tests (Real Systems - NO MOCKS, Production Systems with Test Data)
 
 **Coverage Target**: Happy path scenarios
 
 **Scope**:
-- LabArchives API sync (real NIH instance or sandbox)
-- eLabFTW API sync (real demo instance)
-- Full pipeline: ELN → Dir → NWB → DANDI (golden dataset)
-- DANDI upload (test dandiset)
+- LabArchives API sync (real NIH instance with clearly marked test data)
+- eLabFTW API sync (real instance with clearly marked test data)
+- Full pipeline: ELN → Dir → NWB → DANDI (test data on production systems)
+- DANDI upload (test dandiset with clearly marked test data)
 - ELN status logging (verify updates in real ELN)
+- Manual approval gates and pause functionality
+- Video handling as separate MP4 assets
 
-**Tools**: pytest with `@pytest.mark.e2e`, real credentials (from secrets)
+**Tools**: pytest with `@pytest.mark.e2e`, real credentials (from secrets), run on every commit
 
 **Run Command**: `pixi run e2e`
 
-**Important**: If credentials unavailable, tests MUST be skipped with `pytest.skip(reason="blocked by credentials")`, NOT mocked.
+**Important**: Tests run on production systems with clearly marked test data. No mocking allowed.
 
-### Golden Dataset
+### NWB Validation Strategy
 
-**Purpose**: CI gate for NWB validation and DANDI dry-run
+**Purpose**: CI gate for NWB validation using NWB Inspector tool (not static golden dataset)
 
-**Contents**:
-- Sample ELN entry (JSON fixture, no PII)
-- Sample TDT tank folder (minimal data)
-- Sample protocol CSV
-- Expected NWB file structure (validated with pynwb)
+**Approach**:
+- Use NWB documentation ontology as validation source
+- Use NWB Inspector tool for automated validation
+- No static golden dataset (too brittle, maintenance burden)
 
-**Location**: `tests/fixtures/golden_dataset/`
-
-**CI Gate**: Generate NWB from golden dataset → `pynwb.validate()` → `dandi upload --dry-run` (MUST pass)
+**CI Gate**: Generate NWB from test data → NWB Inspector validation → `dandi upload --dry-run` (MUST pass)
 
 ## Risk Mitigation
 
@@ -1173,19 +1221,33 @@ Write operator-facing quickstart guide covering:
 
 ## Next Steps (Post-Planning)
 
-**UPDATED SEQUENCE** (reflects ArchiveFlow migration):
+**UPDATED SEQUENCE** (reflects ArchiveFlow migration and user decisions):
 
-1. **Approve Plan**: Review plan.md with stakeholders (Josh Lawrimore, DSST team, Tejeda Lab) and approve migration strategy
-2. **Phase -1 Migration** (2 weeks): Execute codebase migration (`uv` → `pixi`, Python 3.11 → 3.13, architecture refactoring)
-3. **Phase 0 Research** (1 week, ACCELERATED): Validate existing implementations, document LabArchives/TDT patterns, research NWB packaging
-4. **Phase 1 Design** (2 weeks): Define data models (leverage Tejeda schemas), contracts, update quickstart guide
+1. **Approve Plan**: Review plan.md with stakeholders (Josh Lawrimore, DSST team, collaborating laboratories) and approve migration strategy
+2. **Phase -1 Migration** (2 weeks): Execute codebase migration (`uv` → `pixi` gradual, Python 3.11 → 3.13 direct/high risk, architecture refactoring with shared business logic, eLabFTW adapter implementation)
+3. **Phase 0 Research** (1 week, ACCELERATED): Validate existing implementations, document LabArchives/TDT patterns, research NWB packaging with configurable scope, research NIH-wide directory standards
+4. **Phase 1 Design** (2 weeks): Define data models (leverage laboratory directory templates), contracts, update quickstart guide
 5. **Generate Tasks**: Run `/tasks` command to generate tasks.md from this plan
-6. **Milestone 1 Kickoff** (2-3 weeks, ACCELERATED): Complete NWB packaging using existing preprocessing
+6. **Milestone 1 Kickoff** (3-4 weeks, EXTENDED for eLabFTW): Complete NWB packaging with configurable scope, eLabFTW adapter, manual approval gates
 
 **Key Stakeholder Approvals Needed**:
 - ✅ Josh Lawrimore: Acknowledge ArchiveFlow contribution, approve refactoring approach
-- ✅ Tejeda Lab: Approve directory structure preservation and workflow continuity
-- ✅ DSST Leadership: Approve timeline acceleration and resource allocation
+- ✅ Collaborating Laboratories: Approve directory structure template and workflow continuity
+- ✅ DSST Leadership: Approve timeline adjustments for eLabFTW priority and resource allocation
+
+**Key Decisions Implemented**:
+- Direct Python 3.13 migration (high risk, fastest)
+- Gradual module-by-module uv→pixi migration (safest)
+- eLabFTW as CRITICAL for launch (moved to M1/M2)
+- Semi-automatic workflow with manual approval gates
+- Configurable NWB scope (raw/processed/both)
+- Video handling as separate MP4 assets
+- Hybrid sync strategy (webhooks + polling)
+- Dynamic worker scaling
+- E2E on production systems with test data
+- NWB Inspector validation (no static golden dataset)
+- Environment variables + `.env` for MVP secrets
+- Rollback via frozen `archiveflow-legacy` branch
 
 ---
 
