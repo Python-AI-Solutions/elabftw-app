@@ -255,7 +255,7 @@ An integrated pipeline that:
 
 ## Project Phases & Timeline
 
-### Phase -1: Codebase Migration (2 weeks)
+### Phase -1: Codebase Migration (50 hours)
 
 **Objective**: Migrate existing ArchiveFlow prototype to constitutional compliance
 
@@ -277,7 +277,7 @@ An integrated pipeline that:
 
 ---
 
-### Phase 0: Research (1 week)
+### Phase 0: Research (30 hours)
 
 **Objective**: Validate technical approaches and resolve implementation unknowns
 
@@ -295,7 +295,7 @@ An integrated pipeline that:
 
 ---
 
-### Milestone 1: MVP - Multi-ELN + Local NWB Generation (3-4 weeks)
+### Milestone 1: MVP - Multi-ELN + Local NWB Generation (120 hours)
 
 **ACCELERATED** (due to ArchiveFlow foundation)
 
@@ -313,7 +313,7 @@ An integrated pipeline that:
 
 ---
 
-### Milestone 2: Automation - Watcher + DANDI Upload (4-5 weeks)
+### Milestone 2: Automation - Watcher + DANDI Upload (140 hours)
 
 **PARTIALLY ACCELERATED** (preprocessing exists, needs Celery wrapping)
 
@@ -334,7 +334,7 @@ An integrated pipeline that:
 
 ---
 
-### Milestone 3: Storage Backend Support (3-4 weeks)
+### Milestone 3: Storage Backend Support (100 hours)
 
 **Renamed** (eLabFTW moved to M1)
 
@@ -349,7 +349,7 @@ An integrated pipeline that:
 
 ---
 
-### Milestone 4: Production Hardening (2-3 weeks)
+### Milestone 4: Production Hardening (60 hours)
 
 **Deliverables**:
 - Performance optimization (signal processing, NWB generation)
@@ -361,9 +361,9 @@ An integrated pipeline that:
 
 ---
 
-### Total Timeline: 14-19 weeks
+### Total Timeline: 500 hours
 
-**With ArchiveFlow foundation**: 30-40% reduction vs. building from scratch
+**With ArchiveFlow foundation**: 40% reduction vs. building from scratch (800-960 hours)
 
 ---
 
@@ -436,7 +436,7 @@ All features support ELN → directory → NWB → DANDI workflow. No unnecessar
 - Multi-ELN support is core mission, not optional enhancement
 - LabArchives-only limits adoption outside NIH
 
-**Impact**: Extends M1 from 2-3 weeks to 3-4 weeks
+**Impact**: M1 includes eLabFTW adapter work (120 hours total)
 
 ---
 
@@ -834,14 +834,14 @@ Structured JSON logs with required fields:
 
 ## Next Steps
 
-### Immediate (This Week)
+### Immediate
 
 1. ✅ **Specifications finalized** - Complete with stakeholder decisions
 2. 📝 **Generate task breakdown** - Run `/tasks` command for detailed implementation tasks
 3. 🔄 **Update PR description** - Reflect lab-agnostic approach and eLabFTW criticality
 4. 👥 **Stakeholder review** - Share PROJECT_OVERVIEW.md with DSST and collaborating labs
 
-### Phase -1 (Weeks 1-2)
+### Phase -1 (50 hours)
 
 1. Set up development environment with pixi
 2. Create `archiveflow-legacy` frozen branch
@@ -849,7 +849,7 @@ Structured JSON logs with required fields:
 4. Migrate to Python 3.13 and validate smoke tests
 5. Implement eLabFTW adapter (CRITICAL)
 
-### Milestone 1 (Weeks 3-6)
+### Milestone 1 (120 hours)
 
 1. Refactor ArchiveFlow into new structure (app/, ui/, workers/)
 2. Create shared business logic layer
@@ -857,7 +857,7 @@ Structured JSON logs with required fields:
 4. Integrate NWB Inspector validation
 5. Build manual approval UI
 
-### Milestone 2 (Weeks 7-11)
+### Milestone 2 (140 hours)
 
 1. Implement Celery background job queue
 2. Add semi-automatic triggers with approval gates

@@ -1,9 +1,9 @@
 # elabftw-app Project Timeline
 
 **Project**: ELN to DANDI Pipeline Automation
-**Total Duration**: 14-19 weeks
+**Total Duration**: 500 hours
 **Timeline Reduction**: 30-40% faster due to ArchiveFlow foundation
-**Last Updated**: 2025-10-29
+**Last Updated**: 2025-10-30
 
 ---
 
@@ -11,20 +11,19 @@
 
 | Phase | Duration | Status | Priority |
 |-------|----------|--------|----------|
-| **Phase -1: Codebase Migration** | 2 weeks | Not Started | CRITICAL |
-| **Phase 0: Research** | 1 week | Completed (Documentation) | Done |
-| **Milestone 1: MVP - Multi-ELN + Local NWB** | 3-4 weeks | Not Started | P1 |
-| **Milestone 2: Automation + DANDI Upload** | 4-5 weeks | Not Started | P2 |
-| **Milestone 3: Storage Backend Support** | 3-4 weeks | Not Started | P3 |
-| **Milestone 4: Production Hardening** | 2-3 weeks | Not Started | P4 |
-| **TOTAL** | **14-19 weeks** | Planning Complete | - |
+| **Phase -1: Codebase Migration** | 50 hours | Not Started | CRITICAL |
+| **Phase 0: Research** | 30 hours | Completed (Documentation) | Done |
+| **Milestone 1: MVP - Multi-ELN + Local NWB** | 120 hours | Not Started | P1 |
+| **Milestone 2: Automation + DANDI Upload** | 140 hours | Not Started | P2 |
+| **Milestone 3: Storage Backend Support** | 100 hours | Not Started | P3 |
+| **Milestone 4: Production Hardening** | 60 hours | Not Started | P4 |
+| **TOTAL** | **500 hours** | Planning Complete | - |
 
 ---
 
 ## Phase -1: Codebase Migration & Architecture Refactoring
 
-**Duration**: 2 weeks
-**Weeks**: 1-2
+**Duration**: 50 hours
 **Status**: Not Started
 **Priority**: CRITICAL (Constitutional Compliance)
 
@@ -56,8 +55,7 @@ Branch strategy - keep `archiveflow-legacy` frozen
 
 ## Phase 0: Research
 
-**Duration**: 1 week
-**Weeks**: 3 (overlaps with Phase -1)
+**Duration**: 30 hours
 **Status**: ✅ Completed (Documentation Phase)
 **Priority**: Done
 
@@ -81,11 +79,10 @@ Validate technical approaches and resolve implementation unknowns
 
 ## Milestone 1: MVP - Multi-ELN + Local NWB Generation
 
-**Duration**: 3-4 weeks
-**Weeks**: 3-6 (adjusted for eLabFTW addition)
+**Duration**: 120 hours
 **Status**: Not Started
 **Priority**: P1 (CRITICAL)
-**Timeline Note**: ACCELERATED due to ArchiveFlow foundation, EXTENDED by 1 week for eLabFTW
+**Timeline Note**: ACCELERATED due to ArchiveFlow foundation, includes eLabFTW adapter
 
 ### Objective
 Working pipeline from ELN to validated NWB file on local storage
@@ -113,8 +110,7 @@ DANDI automation can be manual for MVP (Milestone 2 feature)
 
 ## Milestone 2: Automation - Watcher + DANDI Upload
 
-**Duration**: 4-5 weeks
-**Weeks**: 7-11
+**Duration**: 140 hours
 **Status**: Not Started
 **Priority**: P2 (HIGH)
 **Timeline Note**: PARTIALLY ACCELERATED (preprocessing exists, needs Celery wrapping)
@@ -149,8 +145,7 @@ Multi-storage backends (OneDrive/Box) can slip to Milestone 3
 
 ## Milestone 3: Storage Backend Support
 
-**Duration**: 3-4 weeks
-**Weeks**: 12-15
+**Duration**: 100 hours
 **Status**: Not Started
 **Priority**: P3 (MEDIUM)
 **Timeline Note**: Renamed (eLabFTW moved to M1)
@@ -177,8 +172,7 @@ Advanced preprocessing pipelines can slip to post-launch
 
 ## Milestone 4: Production Hardening
 
-**Duration**: 2-3 weeks
-**Weeks**: 16-19
+**Duration**: 60 hours
 **Status**: Not Started
 **Priority**: P4 (Launch Readiness)
 
@@ -204,23 +198,23 @@ Performance optimization, monitoring, documentation, and security review
 
 ## Cumulative Timeline Breakdown
 
-### Weeks 1-2: Phase -1 (Migration)
+### Phase -1: 50 hours (Migration)
 **Focus**: Constitutional compliance, architecture refactoring, eLabFTW adapter
 **Output**: Migrated codebase on pixi + Python 3.13 with eLabFTW support
 
-### Weeks 3-6: Milestone 1 (MVP)
+### Milestone 1: 120 hours (MVP)
 **Focus**: Multi-ELN support, NWB generation, manual approval workflow
 **Output**: Working ELN → NWB pipeline with LabArchives + eLabFTW
 
-### Weeks 7-11: Milestone 2 (Automation)
+### Milestone 2: 140 hours (Automation)
 **Focus**: File watching, background jobs, DANDI upload, retry logic
 **Output**: Semi-automated pipeline with DANDI integration
 
-### Weeks 12-15: Milestone 3 (Storage)
+### Milestone 3: 100 hours (Storage)
 **Focus**: Cloud storage backends (OneDrive, Box)
 **Output**: Multi-institutional storage support
 
-### Weeks 16-19: Milestone 4 (Hardening)
+### Milestone 4: 60 hours (Hardening)
 **Focus**: Performance, monitoring, security, documentation
 **Output**: Production-ready system
 
@@ -245,31 +239,31 @@ Performance optimization, monitoring, documentation, and security review
 
 | Phase | Original Estimate | With ArchiveFlow | Reduction |
 |-------|-------------------|------------------|-----------|
-| Phase -1 | N/A (not needed) | 2 weeks | +2 weeks (new phase) |
-| Phase 0 | 2 weeks | 1 week | -50% (some research validated) |
-| Milestone 1 | 5-6 weeks | 3-4 weeks | -40% (LabArchives + directory logic done) |
-| Milestone 2 | 6-7 weeks | 4-5 weeks | -30% (preprocessing exists) |
-| Milestone 3 | 4-5 weeks | 3-4 weeks | -25% (adapter pattern established) |
-| Milestone 4 | 3-4 weeks | 2-3 weeks | -30% (Streamlit UI exists) |
-| **TOTAL** | **20-28 weeks** | **14-19 weeks** | **-32% average** |
+| Phase -1 | N/A (not needed) | 50 hours | +50 hours (new phase) |
+| Phase 0 | 80 hours | 30 hours | -62.5% (some research validated) |
+| Milestone 1 | 200-240 hours | 120 hours | -45% (LabArchives + directory logic done) |
+| Milestone 2 | 240-280 hours | 140 hours | -45% (preprocessing exists) |
+| Milestone 3 | 160-200 hours | 100 hours | -43% (adapter pattern established) |
+| Milestone 4 | 120-160 hours | 60 hours | -50% (Streamlit UI exists) |
+| **TOTAL** | **800-960 hours** | **500 hours** | **-40% average** |
 
 ---
 
 ## Key Timeline Adjustments Made
 
-### 1. Added Phase -1 (Migration) - +2 weeks
+### 1. Added Phase -1 (Migration) - +50 hours
 **Reason**: ArchiveFlow uses uv + Python 3.11, constitution requires pixi + Python 3.13
-**Impact**: +2 weeks upfront, but saves 6-9 weeks overall
+**Impact**: +50 hours upfront, but saves 300-460 hours overall
 
-### 2. Moved eLabFTW from M3 to M1 - +1 week to M1
+### 2. Moved eLabFTW from M3 to M1 - included in 120 hours
 **Reason**: Collaborating labs blocked without eLabFTW support
-**Impact**: M1 extended from 2-3 weeks to 3-4 weeks, but M3 reduced by 1 week
+**Impact**: M1 includes eLabFTW adapter work, M3 scope reduced accordingly
 
-### 3. Reduced M1 from 5-6 weeks to 3-4 weeks - -2 weeks
+### 3. Reduced M1 from 200-240 hours to 120 hours - -45%
 **Reason**: LabArchives adapter and directory logic already implemented in ArchiveFlow
 **Impact**: Faster MVP delivery
 
-### 4. Reduced M2 from 6-7 weeks to 4-5 weeks - -2 weeks
+### 4. Reduced M2 from 240-280 hours to 140 hours - -45%
 **Reason**: TDT preprocessing already implemented in ArchiveFlow
 **Impact**: Faster automation delivery
 
@@ -278,23 +272,23 @@ Performance optimization, monitoring, documentation, and security review
 ## Risk Buffer Allocation
 
 ### Phase -1: HIGH RISK (Python 3.13 migration)
-**Buffer**: 0.5 weeks built into 2-week estimate
+**Buffer**: 10 hours built into 50-hour estimate
 **Contingency**: If Python 3.13 incompatible, revert to 3.11 (requires constitution amendment)
 
 ### Milestone 1: MEDIUM RISK (eLabFTW adapter)
-**Buffer**: 1 week built into 3-4 week estimate
+**Buffer**: 20 hours built into 120-hour estimate
 **Contingency**: If eLabFTW blocked, ship M1 with LabArchives only (requires stakeholder approval)
 
 ### Milestone 2: MEDIUM RISK (DANDI upload reliability)
-**Buffer**: 1 week built into 4-5 week estimate
+**Buffer**: 20 hours built into 140-hour estimate
 **Contingency**: Manual upload workflow as fallback
 
 ### Milestone 3: LOW RISK
-**Buffer**: 1 week built into 3-4 week estimate
+**Buffer**: 15 hours built into 100-hour estimate
 **Contingency**: Ship with local storage only, defer cloud storage
 
 ### Milestone 4: LOW RISK
-**Buffer**: 1 week built into 2-3 week estimate
+**Buffer**: 10 hours built into 60-hour estimate
 **Contingency**: Defer non-critical monitoring features
 
 ---
@@ -316,32 +310,34 @@ Performance optimization, monitoring, documentation, and security review
 - Post-launch bug fixes and maintenance
 
 ### Working Assumptions
-- 5-day work weeks
 - Time for code review, testing, and documentation included
 - CI/CD setup time included in Phase -1
 - E2E test environment setup included in each milestone
+- Hours are pure development time (no meetings, admin overhead)
 
 ---
 
-## Next Steps: Week 1 Kickoff
+## Next Steps: Phase -1 Kickoff (First 50 Hours)
 
-### Day 1-2: Environment Setup
+### Hours 1-10: Environment Setup
 - Install pixi
 - Create `archiveflow-legacy` branch
 - Extract ArchiveFlow.zip
 - Audit dependencies
+- Create `pixi.toml` skeleton
 
-### Day 3-5: pixi Migration Start
-- Create `pixi.toml`
-- Migrate core dependencies
-- Set up pixi tasks
+### Hours 11-30: pixi Migration
+- Migrate core dependencies to pixi
+- Set up pixi tasks (api, ui, worker, test, lint, fmt)
 - Run smoke tests
+- Update documentation
 
-### Week 2: Python 3.13 + eLabFTW
+### Hours 31-50: Python 3.13 + eLabFTW
 - Migrate to Python 3.13
 - Validate numerical stability
 - Begin eLabFTW adapter implementation
 - Update tests
+- Final validation
 
 ---
 
