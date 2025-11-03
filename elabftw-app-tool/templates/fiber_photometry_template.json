@@ -1,0 +1,365 @@
+{
+  "extra_fields": {
+    "Subject ID": {
+      "type": "text",
+      "value": "",
+      "required": true,
+      "position": 1,
+      "group_id": 1,
+      "description": "Unique subject identifier (e.g., M001, F023)"
+    },
+    "Species": {
+      "type": "select",
+      "value": "Mus musculus",
+      "options": ["Mus musculus", "Rattus norvegicus", "Other"],
+      "required": true,
+      "position": 2,
+      "group_id": 1,
+      "description": "Animal species"
+    },
+    "Sex": {
+      "type": "select",
+      "value": "",
+      "options": ["M", "F", "U"],
+      "required": true,
+      "position": 3,
+      "group_id": 1,
+      "description": "M=Male, F=Female, U=Unknown"
+    },
+    "Age (days)": {
+      "type": "number",
+      "value": "",
+      "position": 4,
+      "group_id": 1,
+      "description": "Age in days at time of session (e.g., 90)"
+    },
+    "Strain": {
+      "type": "text",
+      "value": "",
+      "position": 5,
+      "group_id": 1,
+      "description": "Genetic strain (e.g., C57BL/6J)"
+    },
+    "Genotype": {
+      "type": "text",
+      "value": "",
+      "position": 6,
+      "group_id": 1,
+      "description": "Genetic modifications (e.g., Th-Cre+/-)"
+    },
+    "Weight (grams)": {
+      "type": "number",
+      "value": "",
+      "position": 7,
+      "group_id": 1,
+      "description": "Body weight in grams"
+    },
+    "Surgery Date": {
+      "type": "date",
+      "value": "",
+      "required": true,
+      "position": 1,
+      "group_id": 2,
+      "description": "Date of viral injection and/or fiber implantation surgery"
+    },
+    "Indicator Label": {
+      "type": "select",
+      "value": "",
+      "options": ["GCaMP6f", "GCaMP6s", "GCaMP7s", "GCaMP8", "jRGECO1a", "jRCaMP1a", "tdTomato", "mCherry", "Other"],
+      "required": true,
+      "position": 2,
+      "group_id": 2,
+      "description": "Fluorescent indicator type"
+    },
+    "Injection Location": {
+      "type": "text",
+      "value": "",
+      "required": true,
+      "position": 3,
+      "group_id": 2,
+      "description": "Brain region or anatomical location (e.g., VTA, NAc, mPFC)"
+    },
+    "Injection AP (mm)": {
+      "type": "number",
+      "value": "",
+      "required": true,
+      "position": 4,
+      "group_id": 2,
+      "description": "Anterior-posterior stereotactic coordinate in mm from bregma"
+    },
+    "Injection ML (mm)": {
+      "type": "number",
+      "value": "",
+      "required": true,
+      "position": 5,
+      "group_id": 2,
+      "description": "Medial-lateral stereotactic coordinate in mm from midline"
+    },
+    "Injection DV (mm)": {
+      "type": "number",
+      "value": "",
+      "required": true,
+      "position": 6,
+      "group_id": 2,
+      "description": "Dorsal-ventral stereotactic coordinate in mm from brain surface"
+    },
+    "Viral Vector Name": {
+      "type": "text",
+      "value": "",
+      "position": 7,
+      "group_id": 2,
+      "description": "Full viral construct name (e.g., AAV9-hSyn-GCaMP6f)"
+    },
+    "Viral Titer": {
+      "type": "text",
+      "value": "",
+      "position": 8,
+      "group_id": 2,
+      "description": "Viral titer (e.g., 1e13 GC/mL, 1x10^12 vg/mL)"
+    },
+    "Injection Volume (nL)": {
+      "type": "number",
+      "value": "",
+      "position": 9,
+      "group_id": 2,
+      "description": "Volume injected in nanoliters"
+    },
+    "Fiber Implant Depth (mm)": {
+      "type": "number",
+      "value": "",
+      "position": 10,
+      "group_id": 2,
+      "description": "Depth of fiber tip from brain surface in mm"
+    },
+    "Session ID": {
+      "type": "text",
+      "value": "",
+      "required": true,
+      "position": 1,
+      "group_id": 3,
+      "description": "Unique session identifier (e.g., session_20240115_M001)"
+    },
+    "Session Date": {
+      "type": "date",
+      "value": "",
+      "required": true,
+      "position": 2,
+      "group_id": 3,
+      "description": "Date of recording session"
+    },
+    "Session Time": {
+      "type": "time",
+      "value": "",
+      "required": true,
+      "position": 3,
+      "group_id": 3,
+      "description": "Start time of recording session"
+    },
+    "Session Description": {
+      "type": "text",
+      "value": "",
+      "position": 4,
+      "group_id": 3,
+      "description": "Brief description (e.g., Baseline, Post-training, Drug administration)"
+    },
+    "Experimenter": {
+      "type": "text",
+      "value": "",
+      "required": true,
+      "position": 5,
+      "group_id": 3,
+      "description": "Name(s) of experimenter(s)"
+    },
+    "Laboratory": {
+      "type": "text",
+      "value": "",
+      "position": 6,
+      "group_id": 3,
+      "description": "Laboratory name"
+    },
+    "Institution": {
+      "type": "text",
+      "value": "NIH NIMH",
+      "position": 7,
+      "group_id": 3,
+      "description": "Institution name"
+    },
+    "Optical Fiber Model": {
+      "type": "text",
+      "value": "",
+      "position": 1,
+      "group_id": 4,
+      "description": "Manufacturer and model (e.g., Doric MFC_400/430-0.48)"
+    },
+    "Fiber Core Diameter (μm)": {
+      "type": "number",
+      "value": "400",
+      "required": true,
+      "position": 2,
+      "group_id": 4,
+      "description": "Core diameter in micrometers (common: 200, 400, 600)"
+    },
+    "Fiber Numerical Aperture": {
+      "type": "number",
+      "value": "0.39",
+      "required": true,
+      "position": 3,
+      "group_id": 4,
+      "description": "NA value (common: 0.22, 0.37, 0.39, 0.48)"
+    },
+    "Excitation Wavelength (nm)": {
+      "type": "number",
+      "value": "470",
+      "required": true,
+      "position": 4,
+      "group_id": 4,
+      "description": "Excitation light wavelength in nanometers (e.g., 405, 470, 560)"
+    },
+    "Emission Wavelength (nm)": {
+      "type": "number",
+      "value": "520",
+      "required": true,
+      "position": 5,
+      "group_id": 4,
+      "description": "Detected emission wavelength in nanometers"
+    },
+    "Dichroic Mirror Cut-on (nm)": {
+      "type": "number",
+      "value": "",
+      "position": 6,
+      "group_id": 4,
+      "description": "Dichroic mirror cut-on wavelength in nm (optional)"
+    },
+    "Emission Filter Center (nm)": {
+      "type": "number",
+      "value": "",
+      "position": 7,
+      "group_id": 4,
+      "description": "Bandpass filter center wavelength in nm (optional)"
+    },
+    "Emission Filter Bandwidth (nm)": {
+      "type": "number",
+      "value": "",
+      "position": 8,
+      "group_id": 4,
+      "description": "Bandpass filter bandwidth in nm (optional)"
+    },
+    "LED Power (mW)": {
+      "type": "number",
+      "value": "",
+      "position": 9,
+      "group_id": 4,
+      "description": "LED output power in milliwatts"
+    },
+    "PMT Gain": {
+      "type": "number",
+      "value": "",
+      "position": 10,
+      "group_id": 4,
+      "description": "Photomultiplier tube gain setting"
+    },
+    "Recording Location": {
+      "type": "text",
+      "value": "",
+      "required": true,
+      "position": 1,
+      "group_id": 5,
+      "description": "Brain region for this recording channel (e.g., VTA)"
+    },
+    "Channel Name": {
+      "type": "text",
+      "value": "",
+      "position": 2,
+      "group_id": 5,
+      "description": "Descriptive channel name (e.g., GCaMP6f_470nm, Isosbestic_405nm)"
+    },
+    "Sampling Rate (Hz)": {
+      "type": "number",
+      "value": "",
+      "position": 3,
+      "group_id": 5,
+      "description": "Data acquisition sampling rate in Hz (e.g., 1000)"
+    },
+    "Protocol Name": {
+      "type": "text",
+      "value": "",
+      "position": 1,
+      "group_id": 6,
+      "description": "Experimental protocol or SOP identifier"
+    },
+    "Data File Path": {
+      "type": "text",
+      "value": "",
+      "position": 2,
+      "group_id": 6,
+      "description": "Path to raw data files (relative or absolute)"
+    },
+    "Behavioral Task": {
+      "type": "select",
+      "value": "",
+      "options": ["Freely moving", "Head-fixed", "Operant conditioning", "Social interaction", "Fear conditioning", "Open field", "Other"],
+      "position": 3,
+      "group_id": 6,
+      "description": "Type of behavioral task during recording"
+    },
+    "Drug Treatment": {
+      "type": "text",
+      "value": "",
+      "position": 4,
+      "group_id": 6,
+      "description": "Any drugs administered (name, dose, route, timing)"
+    },
+    "Notes": {
+      "type": "text",
+      "value": "",
+      "position": 5,
+      "group_id": 6,
+      "description": "Additional observations or comments"
+    },
+    "Analysis Status": {
+      "type": "select",
+      "value": "Pending",
+      "options": ["Pending", "In Progress", "Complete", "Failed", "Excluded"],
+      "position": 6,
+      "group_id": 6,
+      "description": "Current analysis status for tracking"
+    },
+    "Quality Control": {
+      "type": "select",
+      "value": "",
+      "options": ["Pass", "Fail", "Needs Review"],
+      "position": 7,
+      "group_id": 6,
+      "description": "Data quality assessment"
+    }
+  },
+  "elabftw": {
+    "display_main_text": true,
+    "extra_fields_groups": [
+      {
+        "id": 1,
+        "name": "Subject Information"
+      },
+      {
+        "id": 2,
+        "name": "Surgery & Injection"
+      },
+      {
+        "id": 3,
+        "name": "Session Information"
+      },
+      {
+        "id": 4,
+        "name": "Device Configuration"
+      },
+      {
+        "id": 5,
+        "name": "Recording Channel"
+      },
+      {
+        "id": 6,
+        "name": "Notes & Provenance"
+      }
+    ]
+  }
+}
