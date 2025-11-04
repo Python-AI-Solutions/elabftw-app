@@ -4,3 +4,7 @@
 
 # Existing prototype codebase (extracted for reference)
 ArchiveFlow.zip
+
+# Local deployment files (contain sensitive configuration)
+DEPLOY-LOCAL.md
+deploy-local.py
