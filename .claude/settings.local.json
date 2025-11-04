@@ -4,7 +4,8 @@
       "Bash(pixi init:*)",
       "Bash(pixi add:*)",
       "SlashCommand(/constitution)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

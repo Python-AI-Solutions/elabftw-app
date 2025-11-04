@@ -1,16 +1,42 @@
-# Fiber Photometry Metadata Entry - Streamlit App
+# Fiber Photometry Metadata Tool - Streamlit App Suite
 
-A user-friendly web interface for entering fiber photometry experiment metadata and submitting it to eLabFTW.
+A comprehensive web interface for managing fiber photometry experiment metadata in eLabFTW with three distinct user journeys.
 
-## Features
+## Overview
 
-✅ **Organized Form** - 45 fields organized into 6 logical groups
-✅ **Required Field Validation** - Real-time validation of 18 required fields
-✅ **Smart Defaults** - Pre-filled common values (species, wavelengths, etc.)
-✅ **Help Text** - Tooltips on every field
-✅ **Import/Export** - Save/load metadata as JSON
-✅ **eLabFTW Integration** - Direct submission to eLabFTW via API
-✅ **Responsive Design** - Works on desktop and tablet
+This tool suite provides **three user journeys** for different workflows:
+
+### 🔍 Journey A: Validate & Fix Existing Entry
+**Use when**: You have an existing eLabFTW entry with some metadata
+- Load experiment by ID
+- Validate against ndx-fiber-photometry schema
+- Identify missing required fields
+- Fill missing fields via smart form
+- Update experiment with validated metadata
+
+### 📝 Journey B: Create New Entry from Form
+**Use when**: You have experiment data and want to enter it fresh
+- Comprehensive form with 45 fields in 6 groups
+- Real-time validation of 18 required fields
+- Smart defaults and dropdowns
+- Import/export JSON for data portability
+- Submit directly to eLabFTW or save locally
+
+### 📋 Journey C: Add Template to Blank Entry
+**Use when**: You have a blank eLabFTW entry and want the full template structure
+- Preview template (45 fields, 6 groups, 18 required)
+- Enter blank experiment ID
+- One-click template injection
+- Full NWB-compliant structure instantly added
+
+## Common Features
+
+✅ **NWB Compliance** - Full ndx-fiber-photometry extension support
+✅ **Validation** - 18 required fields + data range checks
+✅ **Smart Inputs** - Date pickers, number validation, dropdowns
+✅ **eLabFTW Integration** - Direct API access via elabapi-python
+✅ **Session State** - Progress saved during form filling
+✅ **Error Handling** - Clear messages and guided fixes
 
 ## Installation
 
@@ -47,25 +73,35 @@ export ELABFTW_VERIFY_SSL="true"  # Set to false for self-signed certs
 ### Run the App
 
 ```bash
-streamlit run Metadata_Entry.py
+# Run from streamlit_app directory
+streamlit run Home.py
 ```
 
 The app will open in your browser at `http://localhost:8501`
 
-### Fill Out the Form
+### Choose Your Journey
 
-1. **Subject Information** (7 fields) - Animal details
-2. **Surgery & Injection** (10 fields) - Surgical procedure details
-3. **Session Information** (7 fields) - Recording session metadata
-4. **Device Configuration** (10 fields) - Hardware specs
-5. **Recording Channel** (3 fields) - Channel details
-6. **Notes & Provenance** (8 fields) - Additional tracking
+The **Home page** presents all three user journeys. Select the one that matches your workflow:
 
-### Submit
+**Journey A** (`pages/A_Validate_Existing.py`):
+1. Enter existing experiment ID
+2. Review validation results
+3. Fill missing required fields
+4. Update experiment
 
-Click **"✅ Submit to eLabFTW"** at the bottom of the form.
+**Journey B** (`pages/Metadata_Entry.py`):
+1. Fill comprehensive form (45 fields in 6 groups)
+2. Export/import JSON if needed
+3. Submit to eLabFTW or save locally
+4. View created experiment
 
-Required fields are marked with **\***. The form will validate before submission.
+**Journey C** (`pages/C_Add_Template.py`):
+1. Preview template structure
+2. Enter blank experiment ID
+3. Click to apply template
+4. Access updated experiment in eLabFTW
+
+Required fields are marked with **\*** in all journeys.
 
 ## Features in Detail
 
@@ -175,9 +211,13 @@ pip install elabapi-python
 
 ```
 streamlit_app/
-├── Metadata_Entry.py       # Main Streamlit app
-├── README.md               # This file
-└── requirements.txt        # Python dependencies
+├── Home.py                          # Main landing page with journey selection
+├── pages/
+│   ├── A_Validate_Existing.py       # Journey A: Validate & fix existing entries
+│   ├── Metadata_Entry.py            # Journey B: Create new entry from form
+│   └── C_Add_Template.py            # Journey C: Add template to blank entry
+├── README.md                        # This file
+└── requirements.txt                 # Python dependencies
 ```
 
 ## Related Documentation
@@ -196,22 +236,49 @@ streamlit_app/
 ### Running in Development Mode
 
 ```bash
-streamlit run Metadata_Entry.py --server.runOnSave true
+streamlit run Home.py --server.runOnSave true
 ```
 
 ### Testing Locally (No API)
 
-The app works without eLabFTW API configured:
-- Fill in form
-- Click Submit
-- Metadata saved to JSON instead
+All journeys work without eLabFTW API configured:
+- **Journey A**: Will show error when trying to load experiment
+- **Journey B**: Can fill form and export to JSON (submission disabled)
+- **Journey C**: Will show error when trying to load/apply template
+
+### Testing Each Journey
+
+**Journey A Testing:**
+1. Configure API credentials
+2. Create test experiment in eLabFTW with partial metadata
+3. Load in Journey A
+4. Verify validation errors shown correctly
+5. Fill missing fields and verify update
+
+**Journey B Testing:**
+1. Fill form with test data
+2. Export to JSON and verify format
+3. Re-import JSON and verify pre-population
+4. Submit to eLabFTW (if configured) or save locally
+
+**Journey C Testing:**
+1. Create blank experiment in eLabFTW
+2. Load in Journey C
+3. Verify template preview shows correct stats
+4. Apply template
+5. Verify experiment in eLabFTW has all 45 fields
 
 ### Adding New Fields
 
-1. Add input widget in appropriate group
-2. Add field to `metadata` dictionary in submit handler
-3. Add field to `convert_to_elabftw_metadata()` function
-4. Update validation if required field
+If extending the template with additional fields:
+
+1. Update `../templates/fiber_photometry_template.json`
+2. Update field in all three journey apps:
+   - **Journey A**: Add to validation logic
+   - **Journey B**: Add input widget in appropriate group
+   - **Journey C**: Template auto-updates from JSON
+3. Update `../scripts/parse_elabftw_metadata.py` validation
+4. Update required field count if applicable
 
 ## License
 
@@ -223,4 +290,14 @@ elabftw-app team
 
 ## Version
 
-1.0.0 (2025-11-03)
+1.0.0 (2025-11-04)
+
+## Changelog
+
+### v1.0.0 (2025-11-04)
+- Initial release with three user journeys
+- Journey A: Validate & fix existing entries
+- Journey B: Create new entries from form
+- Journey C: Add template to blank entries
+- Full ndx-fiber-photometry compliance (45 fields, 6 groups)
+- Home page navigation with journey selection
