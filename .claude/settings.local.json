@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pixi init:*)",
+      "Bash(pixi add:*)",
+      "SlashCommand(/constitution)",
+      "Bash(unzip:*)",
+      "Bash(mkdir:*)",
+      "Bash(python deploy-local.py:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker exec:*)",
+      "Bash(pixi run:*)",
+      "Bash(dir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

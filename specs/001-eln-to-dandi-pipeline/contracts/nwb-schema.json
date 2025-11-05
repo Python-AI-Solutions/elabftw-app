@@ -1,0 +1,482 @@
+{
+  "version": "1.0",
+  "schema_date": "2025-10-27",
+  "nwb_version": "2.7.0",
+  "ndx_fiber_photometry_version": "0.1.0",
+  "description": "Mapping schema for ELN metadata fields to NWB file structure. Supports fiber photometry behavioral experiments with TDT data acquisition.",
+  "mappings": {
+    "subject": {
+      "subject_id": {
+        "eln_field": "subject_id",
+        "nwb_field": "Subject.subject_id",
+        "required": true,
+        "data_type": "str",
+        "transform": null,
+        "description": "Unique subject identifier (e.g., 'M001', 'RAT-2024-03')"
+      },
+      "species": {
+        "eln_field": "species",
+        "nwb_field": "Subject.species",
+        "required": true,
+        "data_type": "str",
+        "transform": "species_code_to_ncbi",
+        "description": "Species common name → NCBI Taxon ID URL",
+        "examples": {
+          "mouse": "http://purl.obolibrary.org/obo/NCBITaxon_10090",
+          "rat": "http://purl.obolibrary.org/obo/NCBITaxon_10116"
+        }
+      },
+      "strain": {
+        "eln_field": "strain",
+        "nwb_field": "Subject.strain",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "description": "Genetic strain (e.g., 'C57BL/6J', 'Long-Evans')"
+      },
+      "sex": {
+        "eln_field": "sex",
+        "nwb_field": "Subject.sex",
+        "required": true,
+        "data_type": "str",
+        "transform": "normalize_sex",
+        "description": "Biological sex normalized to NWB vocabulary",
+        "examples": {
+          "M": "M",
+          "F": "F",
+          "male": "M",
+          "female": "F",
+          "Male": "M",
+          "Female": "F",
+          "unknown": "U"
+        }
+      },
+      "date_of_birth": {
+        "eln_field": "dob",
+        "nwb_field": "Subject.date_of_birth",
+        "required": false,
+        "data_type": "datetime",
+        "transform": "parse_datetime",
+        "description": "Birth date for age calculation (ISO8601 format)"
+      },
+      "weight": {
+        "eln_field": "weight",
+        "nwb_field": "Subject.weight",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "description": "Weight in grams at time of experiment (stored as string with unit)"
+      },
+      "description": {
+        "eln_field": "notes",
+        "nwb_field": "Subject.description",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "description": "Free-text notes about subject"
+      }
+    },
+    "session": {
+      "session_start_time": {
+        "eln_field": "session_date",
+        "nwb_field": "NWBFile.session_start_time",
+        "required": true,
+        "data_type": "datetime",
+        "transform": "parse_datetime",
+        "description": "Session start timestamp (ISO8601 format)"
+      },
+      "session_id": {
+        "eln_field": "session_id",
+        "nwb_field": "NWBFile.session_id",
+        "required": true,
+        "data_type": "str",
+        "transform": null,
+        "description": "Unique session identifier (e.g., 'M001_2025-10-27_fear_conditioning')"
+      },
+      "session_description": {
+        "eln_field": "protocol_name",
+        "nwb_field": "NWBFile.session_description",
+        "required": true,
+        "data_type": "str",
+        "transform": null,
+        "description": "Human-readable session description (protocol name)"
+      },
+      "experimenter": {
+        "eln_field": "researcher_name",
+        "nwb_field": "NWBFile.experimenter",
+        "required": false,
+        "data_type": "list[str]",
+        "transform": "split_comma_separated",
+        "description": "List of experimenter names"
+      },
+      "experiment_description": {
+        "eln_field": "experiment_description",
+        "nwb_field": "NWBFile.experiment_description",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "description": "Detailed experiment description from ELN entry"
+      },
+      "protocol": {
+        "eln_field": "protocol_name",
+        "nwb_field": "NWBFile.protocol",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "description": "Protocol name (e.g., 'fear_conditioning', 'operant_lever_press')"
+      },
+      "institution": {
+        "eln_field": null,
+        "nwb_field": "NWBFile.institution",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "default": "National Institutes of Health",
+        "description": "Institution name (hardcoded for NIH deployments)"
+      },
+      "lab": {
+        "eln_field": "lab_name",
+        "nwb_field": "NWBFile.lab",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "description": "Lab name (e.g., 'Tejeda Lab')"
+      }
+    },
+    "fiber_photometry": {
+      "fiber_photometry_response_series": {
+        "eln_field": "tdt_tank_path",
+        "nwb_field": "FiberPhotometry",
+        "required": true,
+        "data_type": "TimeSeries",
+        "transform": "load_tdt_timeseries",
+        "description": "Load TDT tank data and convert to FiberPhotometryResponseSeries",
+        "parameters": {
+          "channels": ["GCaMP", "TdTomato"],
+          "sampling_rate_field": "acquisition_system_metadata.tdt_sampling_rate_hz",
+          "timestamps_field": "tdt_tank_path/timestamps"
+        }
+      },
+      "excitation_source": {
+        "eln_field": "excitation_wavelength_nm",
+        "nwb_field": "FiberPhotometry.excitation_sources",
+        "required": false,
+        "data_type": "list[ExcitationSource]",
+        "transform": "create_excitation_sources",
+        "description": "Excitation light sources (wavelengths, power)",
+        "examples": {
+          "GCaMP": {
+            "name": "GCaMP",
+            "wavelength": 470.0,
+            "power": 0.5
+          },
+          "TdTomato": {
+            "name": "TdTomato",
+            "wavelength": 560.0,
+            "power": 0.3
+          }
+        }
+      },
+      "optical_fiber": {
+        "eln_field": "implant_details",
+        "nwb_field": "FiberPhotometry.optical_fibers",
+        "required": false,
+        "data_type": "list[OpticalFiber]",
+        "transform": "parse_implant_details",
+        "description": "Optical fiber specifications (from surgery metadata)",
+        "examples": {
+          "NAc_fiber": {
+            "name": "NAc_fiber",
+            "location": "NAc",
+            "coordinates": [1.2, 0.8, -4.5]
+          }
+        }
+      }
+    },
+    "behavior": {
+      "trials": {
+        "eln_field": "protocol_csv_path",
+        "nwb_field": "trials",
+        "required": false,
+        "data_type": "TimeIntervals",
+        "transform": "load_protocol_csv_as_trials",
+        "description": "Load protocol CSV and convert to NWB trials table",
+        "parameters": {
+          "trial_columns": ["trial_number", "start_time", "stop_time", "trial_type", "outcome"]
+        }
+      },
+      "behavior_timeseries": {
+        "eln_field": "video_paths",
+        "nwb_field": "processing/behavior/ImageSeries",
+        "required": false,
+        "data_type": "ImageSeries",
+        "transform": "load_video_metadata",
+        "description": "Video file metadata (not video data itself, only reference)",
+        "parameters": {
+          "video_fps": "acquisition_system_metadata.video_fps",
+          "video_resolution": "acquisition_system_metadata.video_resolution"
+        }
+      }
+    },
+    "provenance": {
+      "code_version": {
+        "eln_field": null,
+        "nwb_field": "NWBFile.source_script",
+        "required": true,
+        "data_type": "str",
+        "transform": "get_git_version",
+        "description": "Git commit SHA of packaging code",
+        "example": "elabftw-app@0af5abb3e8d9f72c1b4a5e6d7f8c9d0e1f2a3b4c"
+      },
+      "source_script_file_name": {
+        "eln_field": null,
+        "nwb_field": "NWBFile.source_script_file_name",
+        "required": false,
+        "data_type": "str",
+        "transform": null,
+        "default": "nwb/packager.py",
+        "description": "Name of packaging script"
+      },
+      "related_publications": {
+        "eln_field": "publication_doi",
+        "nwb_field": "NWBFile.related_publications",
+        "required": false,
+        "data_type": "list[str]",
+        "transform": "split_comma_separated",
+        "description": "List of DOIs for related publications"
+      },
+      "keywords": {
+        "eln_field": "keywords",
+        "nwb_field": "NWBFile.keywords",
+        "required": false,
+        "data_type": "list[str]",
+        "transform": "split_comma_separated",
+        "description": "List of keywords for search/discovery"
+      }
+    }
+  },
+  "transforms": {
+    "species_code_to_ncbi": {
+      "description": "Map species common name to NCBI taxonomy ID URL",
+      "function": "nwb.schemas.mapping_utils.map_species_to_ncbi",
+      "lookup_table": {
+        "mouse": "http://purl.obolibrary.org/obo/NCBITaxon_10090",
+        "rat": "http://purl.obolibrary.org/obo/NCBITaxon_10116",
+        "human": "http://purl.obolibrary.org/obo/NCBITaxon_9606"
+      }
+    },
+    "normalize_sex": {
+      "description": "Normalize sex values to NWB vocabulary (M, F, U)",
+      "function": "nwb.schemas.mapping_utils.normalize_sex",
+      "lookup_table": {
+        "M": "M",
+        "F": "F",
+        "U": "U",
+        "male": "M",
+        "female": "F",
+        "Male": "M",
+        "Female": "F",
+        "unknown": "U",
+        "": "U"
+      }
+    },
+    "parse_datetime": {
+      "description": "Parse datetime string to ISO8601 format",
+      "function": "nwb.schemas.mapping_utils.parse_datetime",
+      "format": "ISO8601",
+      "examples": {
+        "2025-10-27": "2025-10-27T00:00:00+00:00",
+        "2025-10-27 14:30:00": "2025-10-27T14:30:00+00:00",
+        "10/27/2025": "2025-10-27T00:00:00+00:00"
+      }
+    },
+    "split_comma_separated": {
+      "description": "Split comma-separated string into list",
+      "function": "nwb.schemas.mapping_utils.split_comma_separated",
+      "examples": {
+        "John Doe, Jane Smith": ["John Doe", "Jane Smith"],
+        "keyword1,keyword2,keyword3": ["keyword1", "keyword2", "keyword3"]
+      }
+    },
+    "load_tdt_timeseries": {
+      "description": "Load TDT tank data and convert to FiberPhotometryResponseSeries",
+      "function": "nwb.packager.load_tdt_timeseries",
+      "library": "tdt",
+      "parameters": {
+        "tank_path": "Path to TDT tank folder",
+        "channels": "List of channel names (e.g., ['GCaMP', 'TdTomato'])",
+        "sampling_rate": "Sampling rate in Hz (from TDT metadata)"
+      },
+      "output": "FiberPhotometryResponseSeries with timestamps and data"
+    },
+    "create_excitation_sources": {
+      "description": "Create ExcitationSource objects from wavelength metadata",
+      "function": "nwb.packager.create_excitation_sources",
+      "parameters": {
+        "wavelengths": "List of wavelengths in nm (e.g., [470, 560])",
+        "power": "List of power values in mW (e.g., [0.5, 0.3])"
+      },
+      "output": "List of ExcitationSource objects"
+    },
+    "parse_implant_details": {
+      "description": "Parse surgery implant details into OpticalFiber objects",
+      "function": "nwb.packager.parse_implant_details",
+      "input_format": "400um fiber in NAc (AP +1.2, ML +0.8, DV -4.5)",
+      "output": "OpticalFiber with location and coordinates"
+    },
+    "load_protocol_csv_as_trials": {
+      "description": "Load protocol CSV and convert to NWB trials table",
+      "function": "nwb.packager.load_protocol_csv_as_trials",
+      "parameters": {
+        "csv_path": "Path to protocol CSV file",
+        "trial_columns": "List of column names to include in trials table"
+      },
+      "output": "TimeIntervals object with trial metadata"
+    },
+    "load_video_metadata": {
+      "description": "Load video file metadata (not video data itself)",
+      "function": "nwb.packager.load_video_metadata",
+      "parameters": {
+        "video_paths": "List of video file paths",
+        "fps": "Video frame rate",
+        "resolution": "Video resolution (e.g., '1920x1080')"
+      },
+      "output": "ImageSeries with video file references and metadata"
+    },
+    "get_git_version": {
+      "description": "Get Git commit SHA of packaging code",
+      "function": "nwb.provenance.get_git_version",
+      "output": "String with format 'elabftw-app@{commit_sha}'"
+    }
+  },
+  "validation_rules": {
+    "required_fields": [
+      "Subject.subject_id",
+      "Subject.species",
+      "Subject.sex",
+      "NWBFile.session_start_time",
+      "NWBFile.session_id",
+      "NWBFile.session_description"
+    ],
+    "conditional_requirements": {
+      "fiber_photometry": {
+        "if": "experiment_type == 'fiber_photometry'",
+        "then_required": [
+          "FiberPhotometry"
+        ]
+      },
+      "behavior": {
+        "if": "experiment_type == 'behavior'",
+        "then_required": [
+          "trials"
+        ]
+      }
+    },
+    "field_constraints": {
+      "Subject.sex": {
+        "allowed_values": ["M", "F", "U"]
+      },
+      "Subject.species": {
+        "pattern": "^http://purl.obolibrary.org/obo/NCBITaxon_[0-9]+$"
+      },
+      "NWBFile.session_start_time": {
+        "format": "datetime",
+        "timezone_required": true
+      }
+    }
+  },
+  "example_eln_metadata": {
+    "subject_id": "M001",
+    "species": "mouse",
+    "strain": "C57BL/6J",
+    "sex": "M",
+    "dob": "2024-06-15",
+    "weight": 25.3,
+    "notes": "Healthy male mouse for fiber photometry experiments",
+    "session_date": "2025-10-27T10:00:00Z",
+    "session_id": "M001_2025-10-27_fear_conditioning",
+    "protocol_name": "fear_conditioning",
+    "researcher_name": "Dr. John Doe",
+    "experiment_description": "Fear conditioning with fiber photometry recording in NAc",
+    "lab_name": "Tejeda Lab",
+    "tdt_tank_path": "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/TDT_Tank/",
+    "protocol_csv_path": "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/protocol.csv",
+    "video_paths": [
+      "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/video_01.mp4"
+    ],
+    "acquisition_system_metadata": {
+      "tdt_sampling_rate_hz": 1017.3,
+      "tdt_channels": ["GCaMP", "TdTomato"],
+      "video_fps": 30,
+      "video_resolution": "1920x1080"
+    },
+    "implant_details": "400um fiber in NAc (AP +1.2, ML +0.8, DV -4.5)",
+    "excitation_wavelength_nm": [470, 560]
+  },
+  "example_nwb_output": {
+    "Subject": {
+      "subject_id": "M001",
+      "species": "http://purl.obolibrary.org/obo/NCBITaxon_10090",
+      "strain": "C57BL/6J",
+      "sex": "M",
+      "date_of_birth": "2024-06-15T00:00:00+00:00",
+      "weight": "25.3 g",
+      "description": "Healthy male mouse for fiber photometry experiments"
+    },
+    "NWBFile": {
+      "session_start_time": "2025-10-27T10:00:00+00:00",
+      "session_id": "M001_2025-10-27_fear_conditioning",
+      "session_description": "fear_conditioning",
+      "experimenter": ["Dr. John Doe"],
+      "experiment_description": "Fear conditioning with fiber photometry recording in NAc",
+      "protocol": "fear_conditioning",
+      "institution": "National Institutes of Health",
+      "lab": "Tejeda Lab",
+      "source_script": "elabftw-app@0af5abb3e8d9f72c1b4a5e6d7f8c9d0e1f2a3b4c",
+      "source_script_file_name": "nwb/packager.py"
+    },
+    "FiberPhotometry": {
+      "name": "FiberPhotometry",
+      "excitation_sources": [
+        {
+          "name": "GCaMP",
+          "wavelength": 470.0,
+          "power": 0.5
+        },
+        {
+          "name": "TdTomato",
+          "wavelength": 560.0,
+          "power": 0.3
+        }
+      ],
+      "optical_fibers": [
+        {
+          "name": "NAc_fiber",
+          "location": "NAc",
+          "coordinates": [1.2, 0.8, -4.5]
+        }
+      ],
+      "response_series": {
+        "GCaMP_signal": {
+          "name": "GCaMP_signal",
+          "data": "[timeseries data from TDT tank]",
+          "timestamps": "[timestamps from TDT tank]",
+          "unit": "a.u."
+        },
+        "TdTomato_signal": {
+          "name": "TdTomato_signal",
+          "data": "[timeseries data from TDT tank]",
+          "timestamps": "[timestamps from TDT tank]",
+          "unit": "a.u."
+        }
+      }
+    },
+    "trials": {
+      "trial_number": [1, 2, 3],
+      "start_time": [0.0, 60.0, 120.0],
+      "stop_time": [60.0, 120.0, 180.0],
+      "trial_type": ["baseline", "CS", "CS"],
+      "outcome": ["none", "freeze", "freeze"]
+    }
+  }
+}

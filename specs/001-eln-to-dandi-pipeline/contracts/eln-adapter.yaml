@@ -1,0 +1,468 @@
+openapi: 3.1.0
+info:
+  title: ELN Adapter Interface
+  version: 1.0.0
+  description: |
+    Abstract interface for Electronic Lab Notebook (ELN) adapters.
+
+    This contract defines the required methods for integrating with ELN systems
+    (LabArchives, eLabFTW). All adapters MUST implement these methods with
+    identical signatures and semantics.
+
+    **Implementations**:
+    - `adapters/eln/labarchives/adapter.py` (LabArchivesAdapter)
+    - `adapters/eln/elabftw/adapter.py` (ElabFTWAdapter)
+
+    **Protocol Definition** (Python):
+    ```python
+    from typing import Protocol
+    from datetime import datetime
+    from pathlib import Path
+
+    class ELNAdapter(Protocol):
+        def authenticate(self, credentials: dict) -> tuple[bool, str | None]: ...
+        def get_entries(self, since: datetime, entry_types: list[str]) -> tuple[list[ELNEntry], str | None]: ...
+        def get_entry(self, entry_id: str) -> tuple[ELNEntry | None, str | None]: ...
+        def update_entry_status(self, entry_id: str, status_message: str, timestamp: datetime) -> tuple[bool, str | None]: ...
+        def download_attachment(self, entry_id: str, attachment_id: str, destination_path: Path) -> tuple[bool, Path | None, str | None]: ...
+    ```
+
+components:
+  schemas:
+    Credentials:
+      type: object
+      description: Backend-specific authentication credentials
+      properties:
+        token:
+          type: string
+          description: API token or API key (backend-specific)
+        base_url:
+          type: string
+          format: uri
+          description: ELN instance base URL (optional for multi-tenant)
+      required:
+        - token
+      examples:
+        - token: "labarchives_api_token_12345"
+          base_url: "https://nih.labarchives.com"
+
+    ELNEntry:
+      type: object
+      description: Parsed ELN entry with metadata
+      properties:
+        entry_id:
+          type: string
+          description: ELN-specific entry identifier
+        eln_backend:
+          type: string
+          enum:
+            - labarchives
+            - elabftw
+        entry_type:
+          type: string
+          enum:
+            - surgery
+            - behavior
+            - imaging
+        creation_date:
+          type: string
+          format: date-time
+          description: Timestamp of entry creation in ELN
+        last_modified_date:
+          type: string
+          format: date-time
+          description: Timestamp of most recent modification
+        researcher_name:
+          type: string
+          description: Name/username of researcher who created entry
+        parsed_metadata:
+          type: object
+          description: Extracted structured metadata (adapter-specific)
+          additionalProperties: true
+        raw_content:
+          type: string
+          description: Raw ELN content (HTML/Markdown)
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+      required:
+        - entry_id
+        - eln_backend
+        - entry_type
+        - creation_date
+        - last_modified_date
+        - researcher_name
+        - parsed_metadata
+      examples:
+        - entry_id: "LA_20251027_005"
+          eln_backend: "labarchives"
+          entry_type: "behavior"
+          creation_date: "2025-10-27T08:30:00Z"
+          last_modified_date: "2025-10-27T08:45:00Z"
+          researcher_name: "Dr. John Doe"
+          parsed_metadata:
+            subject_id: "M001"
+            session_date: "2025-10-27"
+            protocol_name: "fear_conditioning"
+            duration_minutes: 60
+            trial_count: 10
+          raw_content: "<html><p>Fear conditioning experiment...</p></html>"
+          attachments:
+            - attachment_id: "att_001"
+              filename: "protocol.csv"
+              size_bytes: 2048
+              content_type: "text/csv"
+
+    Attachment:
+      type: object
+      description: ELN entry attachment metadata
+      properties:
+        attachment_id:
+          type: string
+          description: Attachment identifier within entry
+        filename:
+          type: string
+          description: Original filename
+        size_bytes:
+          type: integer
+          description: File size in bytes
+        content_type:
+          type: string
+          description: MIME type
+      required:
+        - attachment_id
+        - filename
+
+    AuthResponse:
+      type: object
+      description: Authentication result
+      properties:
+        authenticated:
+          type: boolean
+          description: True if authentication succeeded
+        error:
+          type: string
+          nullable: true
+          description: Error message if authentication failed
+      required:
+        - authenticated
+
+    GetEntriesResponse:
+      type: object
+      description: List of entries retrieved from ELN
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ELNEntry'
+        error:
+          type: string
+          nullable: true
+          description: Error message if retrieval failed
+      required:
+        - entries
+
+    GetEntryResponse:
+      type: object
+      description: Single entry retrieved from ELN
+      properties:
+        entry:
+          $ref: '#/components/schemas/ELNEntry'
+          nullable: true
+        error:
+          type: string
+          nullable: true
+          description: Error message if retrieval failed
+
+    UpdateStatusResponse:
+      type: object
+      description: Status update result
+      properties:
+        success:
+          type: boolean
+          description: True if status update succeeded
+        error:
+          type: string
+          nullable: true
+          description: Error message if update failed
+      required:
+        - success
+
+    DownloadAttachmentResponse:
+      type: object
+      description: Attachment download result
+      properties:
+        success:
+          type: boolean
+          description: True if download succeeded
+        file_path:
+          type: string
+          format: path
+          nullable: true
+          description: Path to downloaded file
+        error:
+          type: string
+          nullable: true
+          description: Error message if download failed
+      required:
+        - success
+
+paths:
+  /authenticate:
+    post:
+      summary: Authenticate with ELN backend
+      description: |
+        Validate credentials and establish authenticated session.
+
+        **Implementation Notes**:
+        - LabArchives: Token-based auth via NIH-approved wrapper
+        - eLabFTW: API key authentication
+        - Credentials should be retrieved from environment or secrets manager
+        - MUST NOT log credentials
+      operationId: authenticate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Authentication result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  value:
+                    authenticated: true
+                    error: null
+                failure:
+                  value:
+                    authenticated: false
+                    error: "Invalid API token"
+
+  /entries:
+    get:
+      summary: Retrieve entries since last sync
+      description: |
+        Fetch ELN entries created or modified since specified timestamp.
+
+        **Implementation Notes**:
+        - Poll ELN API for new/updated entries
+        - Filter by entry_types (Surgery, Behavior, Imaging)
+        - Parse entry content → structured metadata
+        - Handle pagination if backend supports it
+        - Recommended poll interval: 5 minutes (configurable)
+      operationId: get_entries
+      parameters:
+        - name: since
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Only retrieve entries modified after this timestamp
+        - name: entry_types
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              enum:
+                - surgery
+                - behavior
+                - imaging
+          description: Filter by entry types (default: all types)
+      responses:
+        '200':
+          description: List of entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetEntriesResponse'
+              examples:
+                success:
+                  value:
+                    entries:
+                      - entry_id: "LA_20251027_005"
+                        eln_backend: "labarchives"
+                        entry_type: "behavior"
+                        creation_date: "2025-10-27T08:30:00Z"
+                        last_modified_date: "2025-10-27T08:45:00Z"
+                        researcher_name: "Dr. John Doe"
+                        parsed_metadata:
+                          subject_id: "M001"
+                          session_date: "2025-10-27"
+                          protocol_name: "fear_conditioning"
+                        raw_content: "<html>...</html>"
+                    error: null
+                failure:
+                  value:
+                    entries: []
+                    error: "API rate limit exceeded"
+
+  /entries/{entry_id}:
+    get:
+      summary: Retrieve single entry by ID
+      description: |
+        Fetch detailed information for a specific ELN entry.
+
+        **Implementation Notes**:
+        - Retrieve entry by ELN-specific ID
+        - Include attachments metadata
+        - Parse all metadata fields
+      operationId: get_entry
+      parameters:
+        - name: entry_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ELN-specific entry identifier
+      responses:
+        '200':
+          description: Entry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetEntryResponse'
+              examples:
+                success:
+                  value:
+                    entry:
+                      entry_id: "LA_20251027_005"
+                      eln_backend: "labarchives"
+                      entry_type: "behavior"
+                      creation_date: "2025-10-27T08:30:00Z"
+                      last_modified_date: "2025-10-27T08:45:00Z"
+                      researcher_name: "Dr. John Doe"
+                      parsed_metadata:
+                        subject_id: "M001"
+                      raw_content: "<html>...</html>"
+                    error: null
+                not_found:
+                  value:
+                    entry: null
+                    error: "Entry not found: LA_20251027_005"
+
+  /entries/{entry_id}/status:
+    post:
+      summary: Log status update to ELN entry
+      description: |
+        Write status message back to original ELN entry (as comment or status field).
+
+        **Implementation Notes**:
+        - LabArchives: Append comment to entry
+        - eLabFTW: Update status field or add comment
+        - Include timestamp and pipeline stage
+        - Log provenance (code version, NWB file path, DANDI asset ID)
+        - MUST NOT fail pipeline if logging fails (queue retry)
+      operationId: update_entry_status
+      parameters:
+        - name: entry_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ELN-specific entry identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status_message:
+                  type: string
+                  description: Status update message
+                timestamp:
+                  type: string
+                  format: date-time
+                  description: Timestamp of status update
+              required:
+                - status_message
+                - timestamp
+            examples:
+              packaging_complete:
+                value:
+                  status_message: "NWB file generated successfully. File: /storage/.../M001_2025-10-27_fear_conditioning.nwb. Code version: 0af5abb."
+                  timestamp: "2025-10-27T14:30:00Z"
+              dandi_upload:
+                value:
+                  status_message: "Uploaded to DANDI. Asset ID: dandiset/000123/asset/456789. URL: https://dandiarchive.org/dandiset/000123"
+                  timestamp: "2025-10-27T15:00:00Z"
+      responses:
+        '200':
+          description: Status update result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateStatusResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    error: null
+                failure:
+                  value:
+                    success: false
+                    error: "API write permission denied"
+
+  /entries/{entry_id}/attachments/{attachment_id}:
+    get:
+      summary: Download attachment from ELN entry
+      description: |
+        Download file attachment to specified destination path.
+
+        **Implementation Notes**:
+        - Stream large files to avoid memory exhaustion
+        - Verify checksum if available
+        - Create parent directories if needed
+        - Return absolute path to downloaded file
+      operationId: download_attachment
+      parameters:
+        - name: entry_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ELN-specific entry identifier
+        - name: attachment_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Attachment identifier within entry
+        - name: destination_path
+          in: query
+          required: true
+          schema:
+            type: string
+            format: path
+          description: Absolute path to save downloaded file
+      responses:
+        '200':
+          description: Download result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadAttachmentResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    file_path: "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/metadata/protocol.csv"
+                    error: null
+                failure:
+                  value:
+                    success: false
+                    file_path: null
+                    error: "Network timeout during download"
+
+externalDocs:
+  description: ELN Adapter Implementation Guide
+  url: https://github.com/your-org/elabftw-app/blob/main/adapters/eln/README.md

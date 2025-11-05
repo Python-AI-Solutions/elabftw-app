@@ -1,0 +1,15 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# Existing prototype codebase (extracted for reference)
+ArchiveFlow.zip
+
+# Local deployment files (contain sensitive configuration)
+DEPLOY-LOCAL.md
+deploy-local.py
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local

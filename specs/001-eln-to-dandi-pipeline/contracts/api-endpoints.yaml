@@ -1,0 +1,646 @@
+openapi: 3.1.0
+info:
+  title: elabftw-app API
+  version: 1.0.0
+  description: |
+    FastAPI backend for ELN to DANDI pipeline automation.
+
+    **Base URL**: `http://localhost:8000` (development), `https://elabftw-app.nih.gov` (production)
+
+    **Authentication**: Future implementation (OAuth2/JWT). Currently no authentication (trusted environment).
+
+    **Versioning**: All endpoints under `/v1/` prefix. Breaking changes require `/v2/` endpoints.
+
+    **Rate Limiting**: 100 requests/minute per IP (future implementation).
+
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: https://elabftw-app.nih.gov
+    description: Production server (NIH)
+
+tags:
+  - name: sync
+    description: ELN synchronization operations
+  - name: status
+    description: Pipeline status queries
+  - name: subjects
+    description: Subject and session management
+  - name: nwb
+    description: NWB packaging operations
+  - name: health
+    description: Health checks
+
+components:
+  schemas:
+    SyncRequest:
+      type: object
+      description: Request to trigger ELN sync
+      properties:
+        project_id:
+          type: string
+          description: ELN project identifier (optional, syncs all if omitted)
+        since:
+          type: string
+          format: date-time
+          description: Only sync entries modified after this timestamp (optional)
+        force_resync:
+          type: boolean
+          default: false
+          description: Force re-sync of already processed entries
+      required:
+        - project_id
+      examples:
+        - project_id: "labarchives_project_123"
+          since: "2025-10-27T00:00:00Z"
+          force_resync: false
+
+    SyncResponse:
+      type: object
+      description: Sync job acceptance confirmation
+      properties:
+        accepted:
+          type: boolean
+          description: True if sync job was queued
+        request_id:
+          type: string
+          description: Unique request ID for tracking
+        message:
+          type: string
+          description: Human-readable status message
+      required:
+        - accepted
+        - request_id
+      examples:
+        - accepted: true
+          request_id: "req_1730026800_abc123"
+          message: "Sync job queued successfully"
+
+    PipelineStatus:
+      type: object
+      description: Pipeline status for a behavior session
+      properties:
+        session_id:
+          type: string
+          description: Unique session identifier
+        subject_id:
+          type: string
+          description: Subject identifier
+        session_date:
+          type: string
+          format: date
+          description: Session date
+        protocol_name:
+          type: string
+          description: Behavioral protocol name
+        current_stage:
+          type: string
+          enum:
+            - eln_synced
+            - awaiting_data
+            - preprocessing
+            - packaging
+            - uploading
+            - completed
+            - failed
+          description: Current pipeline stage
+        last_updated:
+          type: string
+          format: date-time
+          description: Timestamp of most recent stage transition
+        error_messages:
+          type: array
+          items:
+            type: string
+          description: List of error messages (if failed)
+        nwb_file_path:
+          type: string
+          nullable: true
+          description: Path to generated NWB file (if completed)
+        dandi_asset_id:
+          type: string
+          nullable: true
+          description: DANDI asset ID (if uploaded)
+      required:
+        - session_id
+        - subject_id
+        - current_stage
+        - last_updated
+      examples:
+        - session_id: "M001_2025-10-27_fear_conditioning"
+          subject_id: "M001"
+          session_date: "2025-10-27"
+          protocol_name: "fear_conditioning"
+          current_stage: "completed"
+          last_updated: "2025-10-27T15:00:00Z"
+          error_messages: []
+          nwb_file_path: "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/processed/M001_2025-10-27_fear_conditioning.nwb"
+          dandi_asset_id: "dandiset/000123/asset/456789"
+
+    StatusResponse:
+      type: object
+      description: Pipeline status for a subject
+      properties:
+        subject_id:
+          type: string
+          description: Subject identifier
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStatus'
+          description: List of sessions for this subject
+      required:
+        - subject_id
+        - sessions
+      examples:
+        - subject_id: "M001"
+          sessions:
+            - session_id: "M001_2025-10-27_fear_conditioning"
+              subject_id: "M001"
+              session_date: "2025-10-27"
+              protocol_name: "fear_conditioning"
+              current_stage: "completed"
+              last_updated: "2025-10-27T15:00:00Z"
+              error_messages: []
+              nwb_file_path: "/storage/.../M001_2025-10-27_fear_conditioning.nwb"
+              dandi_asset_id: "dandiset/000123/asset/456789"
+
+    Subject:
+      type: object
+      description: Subject entity
+      properties:
+        subject_id:
+          type: string
+          description: Unique subject identifier
+        species:
+          type: string
+          description: Species (e.g., "mouse", "rat")
+        strain:
+          type: string
+          nullable: true
+          description: Genetic strain
+        sex:
+          type: string
+          enum:
+            - M
+            - F
+            - U
+          description: Biological sex
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+          description: Birth date
+        session_count:
+          type: integer
+          description: Total number of behavior sessions
+        last_session_date:
+          type: string
+          format: date
+          nullable: true
+          description: Date of most recent session
+      required:
+        - subject_id
+        - species
+        - sex
+        - session_count
+      examples:
+        - subject_id: "M001"
+          species: "mouse"
+          strain: "C57BL/6J"
+          sex: "M"
+          date_of_birth: "2024-06-15"
+          session_count: 5
+          last_session_date: "2025-10-27"
+
+    SubjectsResponse:
+      type: object
+      description: List of subjects
+      properties:
+        subjects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subject'
+        total_count:
+          type: integer
+          description: Total number of subjects
+      required:
+        - subjects
+        - total_count
+      examples:
+        - subjects:
+            - subject_id: "M001"
+              species: "mouse"
+              strain: "C57BL/6J"
+              sex: "M"
+              date_of_birth: "2024-06-15"
+              session_count: 5
+              last_session_date: "2025-10-27"
+          total_count: 1
+
+    SessionsResponse:
+      type: object
+      description: List of sessions for a subject
+      properties:
+        subject_id:
+          type: string
+          description: Subject identifier
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              session_id:
+                type: string
+              session_date:
+                type: string
+                format: date
+              protocol_name:
+                type: string
+              current_stage:
+                type: string
+              nwb_file_path:
+                type: string
+                nullable: true
+      required:
+        - subject_id
+        - sessions
+      examples:
+        - subject_id: "M001"
+          sessions:
+            - session_id: "M001_2025-10-27_fear_conditioning"
+              session_date: "2025-10-27"
+              protocol_name: "fear_conditioning"
+              current_stage: "completed"
+              nwb_file_path: "/storage/.../M001_2025-10-27_fear_conditioning.nwb"
+
+    NWBPackageRequest:
+      type: object
+      description: Request to manually trigger NWB packaging
+      properties:
+        session_id:
+          type: string
+          description: Session identifier
+        force_repackage:
+          type: boolean
+          default: false
+          description: Force re-packaging even if NWB file exists
+      required:
+        - session_id
+      examples:
+        - session_id: "M001_2025-10-27_fear_conditioning"
+          force_repackage: false
+
+    NWBPackageResponse:
+      type: object
+      description: NWB packaging job acceptance confirmation
+      properties:
+        accepted:
+          type: boolean
+          description: True if packaging job was queued
+        job_id:
+          type: string
+          description: Celery job ID for tracking
+        message:
+          type: string
+          description: Human-readable status message
+      required:
+        - accepted
+        - job_id
+      examples:
+        - accepted: true
+          job_id: "celery_job_1730026800_xyz789"
+          message: "NWB packaging job queued successfully"
+
+    HealthResponse:
+      type: object
+      description: Health check response
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - unhealthy
+          description: Overall system health
+        version:
+          type: string
+          description: API version
+        components:
+          type: object
+          properties:
+            redis:
+              type: string
+              enum:
+                - up
+                - down
+              description: Redis broker status
+            eln_adapter:
+              type: string
+              enum:
+                - up
+                - down
+              description: ELN adapter status
+            storage_adapter:
+              type: string
+              enum:
+                - up
+                - down
+              description: Storage adapter status
+          required:
+            - redis
+            - eln_adapter
+            - storage_adapter
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+      required:
+        - status
+        - version
+        - components
+        - timestamp
+      examples:
+        - status: "healthy"
+          version: "1.0.0"
+          components:
+            redis: "up"
+            eln_adapter: "up"
+            storage_adapter: "up"
+          timestamp: "2025-10-27T15:00:00Z"
+
+    ErrorResponse:
+      type: object
+      description: Error response
+      properties:
+        error:
+          type: string
+          description: Error message
+        detail:
+          type: string
+          description: Detailed error information
+        request_id:
+          type: string
+          description: Request ID for troubleshooting
+      required:
+        - error
+      examples:
+        - error: "Session not found"
+          detail: "No session with ID 'M999_2025-10-27_unknown' exists"
+          request_id: "req_1730026800_abc123"
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check
+      description: |
+        Check API and component health status.
+
+        **Components Checked**:
+        - Redis (Celery broker)
+        - ELN adapter (authentication test)
+        - Storage adapter (filesystem access test)
+      operationId: health_check
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/sync:
+    post:
+      tags:
+        - sync
+      summary: Trigger ELN sync job
+      description: |
+        Manually trigger ELN synchronization.
+
+        **Behavior**:
+        - Poll ELN API for new/updated entries
+        - Parse metadata and create Subject/Surgery/BehaviorSession entities
+        - Create directory structures via Storage Adapter
+        - Initialize Pipeline Status records
+        - Return immediately (async job queued)
+
+        **Automatic Polling**:
+        - System polls ELN every 5 minutes (configurable)
+        - This endpoint allows manual triggering for testing or immediate sync
+      operationId: trigger_sync
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SyncRequest'
+      responses:
+        '202':
+          description: Sync job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/status/{subject_id}:
+    get:
+      tags:
+        - status
+      summary: Get pipeline status for subject
+      description: |
+        Retrieve pipeline status for all sessions of a subject.
+
+        **Response Includes**:
+        - All behavior sessions
+        - Current pipeline stage for each session
+        - Error messages (if failed)
+        - NWB file paths (if completed)
+        - DANDI asset IDs (if uploaded)
+      operationId: get_status
+      parameters:
+        - name: subject_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Subject identifier
+      responses:
+        '200':
+          description: Pipeline status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '404':
+          description: Subject not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/subjects:
+    get:
+      tags:
+        - subjects
+      summary: List all subjects
+      description: |
+        Retrieve list of all subjects with basic metadata.
+
+        **Query Parameters** (future):
+        - `species`: Filter by species
+        - `has_sessions`: Filter by session count > 0
+        - `limit`, `offset`: Pagination
+      operationId: list_subjects
+      responses:
+        '200':
+          description: Subject list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectsResponse'
+
+  /v1/sessions/{subject_id}:
+    get:
+      tags:
+        - subjects
+      summary: List sessions for a subject
+      description: |
+        Retrieve all behavior sessions for a subject.
+
+        **Response Includes**:
+        - Session ID, date, protocol
+        - Current pipeline stage
+        - NWB file path (if completed)
+      operationId: list_sessions
+      parameters:
+        - name: subject_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Subject identifier
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsResponse'
+        '404':
+          description: Subject not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/nwb/package:
+    post:
+      tags:
+        - nwb
+      summary: Manually trigger NWB packaging
+      description: |
+        Manually trigger NWB packaging for a session.
+
+        **Use Cases**:
+        - Force re-packaging after code changes
+        - Retry failed packaging jobs
+        - Testing with golden datasets
+
+        **Behavior**:
+        - Queue Celery packaging task
+        - Return immediately (async job)
+        - Packaging includes:
+          - Load preprocessed data
+          - Map metadata to NWB schema
+          - Generate NWB file (pynwb)
+          - Validate (pynwb.validate)
+          - Record provenance (Git SHA, pixi lock hash)
+      operationId: package_nwb
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NWBPackageRequest'
+      responses:
+        '202':
+          description: Packaging job accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NWBPackageResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/webhook/eln:
+    post:
+      tags:
+        - sync
+      summary: ELN webhook receiver (future)
+      description: |
+        Receive webhook notifications from ELN systems (if supported).
+
+        **Implementation**: Future feature (Phase 3+)
+        **Current Behavior**: Polling-based sync (every 5 minutes)
+
+        **Webhook Payload** (example):
+        ```json
+        {
+          "event_type": "entry_created",
+          "entry_id": "LA_20251027_005",
+          "timestamp": "2025-10-27T09:00:00Z"
+        }
+        ```
+      operationId: eln_webhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_type:
+                  type: string
+                entry_id:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: boolean
+        '501':
+          description: Not implemented yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+externalDocs:
+  description: API Documentation and Examples
+  url: https://github.com/your-org/elabftw-app/blob/main/docs/api.md

@@ -1,0 +1,487 @@
+openapi: 3.1.0
+info:
+  title: Storage Adapter Interface
+  version: 1.0.0
+  description: |
+    Abstract interface for storage backend adapters.
+
+    This contract defines the required methods for integrating with storage systems
+    (local filesystem, OneDrive, Box). All adapters MUST implement these methods
+    with identical signatures and semantics.
+
+    **Implementations**:
+    - `adapters/storage/local/adapter.py` (LocalStorageAdapter)
+    - `adapters/storage/onedrive/adapter.py` (OneDriveAdapter)
+    - `adapters/storage/box/adapter.py` (BoxAdapter)
+
+    **Protocol Definition** (Python):
+    ```python
+    from typing import Protocol, Callable, AsyncGenerator
+    from pathlib import Path
+
+    class StorageAdapter(Protocol):
+        def ensure_structure(self, manifest: Manifest) -> tuple[Path, str | None]: ...
+        def put(self, source_path: Path, destination_path: Path) -> tuple[bool, str | None]: ...
+        def get(self, file_path: Path) -> tuple[bytes | None, str | None]: ...
+        def exists(self, path: Path) -> bool: ...
+        def list(self, directory_path: Path, recursive: bool = False) -> tuple[list[Path], str | None]: ...
+        async def watch(self, directory_path: Path, event_handler: Callable) -> tuple[str, str | None]: ...
+    ```
+
+components:
+  schemas:
+    Manifest:
+      type: object
+      description: |
+        Directory structure manifest for an experiment session.
+
+        **Directory Structure Template**:
+        ```
+        experiments/{subject_id}/{experiment_type}/{protocol_name}/{session_date}/
+        ├── raw/                # Raw data files (TDT tank, CSV, video)
+        ├── processed/          # Preprocessed data and NWB files
+        ├── metadata/           # Metadata spreadsheets and logs
+        ├── analysis/           # Analysis outputs
+        └── .elabftw-manifest.json  # Manifest file (JSON)
+        ```
+      properties:
+        subject_id:
+          type: string
+          description: Subject identifier
+        experiment_type:
+          type: string
+          enum:
+            - surgery
+            - behavior
+            - imaging
+        protocol_name:
+          type: string
+          description: Protocol/task name (e.g., "fear_conditioning")
+        session_date:
+          type: string
+          format: date
+          description: Session date (YYYY-MM-DD)
+        required_subdirs:
+          type: array
+          items:
+            type: string
+          description: List of required subdirectories
+          default:
+            - raw
+            - processed
+            - metadata
+            - analysis
+        metadata:
+          type: object
+          description: Additional metadata to include in manifest file
+          additionalProperties: true
+      required:
+        - subject_id
+        - experiment_type
+        - protocol_name
+        - session_date
+      examples:
+        - subject_id: "M001"
+          experiment_type: "behavior"
+          protocol_name: "fear_conditioning"
+          session_date: "2025-10-27"
+          required_subdirs:
+            - raw
+            - processed
+            - metadata
+            - analysis
+          metadata:
+            researcher: "Dr. John Doe"
+            eln_entry_id: "LA_20251027_005"
+            created_at: "2025-10-27T09:00:00Z"
+
+    EnsureStructureResponse:
+      type: object
+      description: Directory creation result
+      properties:
+        directory_path:
+          type: string
+          format: path
+          description: Absolute path to created directory
+        error:
+          type: string
+          nullable: true
+          description: Error message if creation failed
+      required:
+        - directory_path
+
+    PutResponse:
+      type: object
+      description: File upload result
+      properties:
+        success:
+          type: boolean
+          description: True if upload succeeded
+        error:
+          type: string
+          nullable: true
+          description: Error message if upload failed
+      required:
+        - success
+
+    GetResponse:
+      type: object
+      description: File retrieval result
+      properties:
+        content:
+          type: string
+          format: byte
+          nullable: true
+          description: File content as bytes (base64 encoded in JSON)
+        error:
+          type: string
+          nullable: true
+          description: Error message if retrieval failed
+
+    ExistsResponse:
+      type: object
+      description: Existence check result
+      properties:
+        exists:
+          type: boolean
+          description: True if path exists
+      required:
+        - exists
+
+    ListResponse:
+      type: object
+      description: Directory listing result
+      properties:
+        files:
+          type: array
+          items:
+            type: string
+            format: path
+          description: List of file/directory paths
+        error:
+          type: string
+          nullable: true
+          description: Error message if listing failed
+      required:
+        - files
+
+    WatchResponse:
+      type: object
+      description: Directory watcher initialization result
+      properties:
+        watcher_id:
+          type: string
+          description: Unique watcher identifier
+        error:
+          type: string
+          nullable: true
+          description: Error message if watcher initialization failed
+      required:
+        - watcher_id
+
+    FileEvent:
+      type: object
+      description: File system event notification
+      properties:
+        event_type:
+          type: string
+          enum:
+            - created
+            - modified
+            - deleted
+          description: Type of file system event
+        file_path:
+          type: string
+          format: path
+          description: Absolute path to affected file
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of event
+      required:
+        - event_type
+        - file_path
+        - timestamp
+      examples:
+        - event_type: "created"
+          file_path: "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/TDT_Tank/Block-1/data.sev"
+          timestamp: "2025-10-27T11:30:00Z"
+
+paths:
+  /structure:
+    post:
+      summary: Create directory structure from manifest
+      description: |
+        Create standardized directory structure for an experiment session.
+
+        **Implementation Notes**:
+        - Create all required subdirectories atomically
+        - Write `.elabftw-manifest.json` file with metadata
+        - If directory already exists, verify structure matches manifest
+        - Return absolute path to root directory
+        - MUST be idempotent (safe to call multiple times)
+      operationId: ensure_structure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Manifest'
+      responses:
+        '200':
+          description: Directory structure created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnsureStructureResponse'
+              examples:
+                success:
+                  value:
+                    directory_path: "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27"
+                    error: null
+                failure:
+                  value:
+                    directory_path: null
+                    error: "Permission denied: /storage/experiments"
+
+  /files:
+    put:
+      summary: Write file to storage
+      description: |
+        Upload file from local source to storage destination.
+
+        **Implementation Notes**:
+        - Create parent directories if needed
+        - Overwrite existing file (with warning log)
+        - Stream large files to avoid memory exhaustion
+        - Verify checksum after upload (if supported by backend)
+        - Local adapter: Use `shutil.copy2` (preserves metadata)
+        - Cloud adapters: Use chunked upload APIs
+      operationId: put
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                source_path:
+                  type: string
+                  format: path
+                  description: Absolute path to source file
+                destination_path:
+                  type: string
+                  format: path
+                  description: Absolute path to destination file
+              required:
+                - source_path
+                - destination_path
+            examples:
+              local_copy:
+                value:
+                  source_path: "/tmp/upload/protocol.csv"
+                  destination_path: "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/protocol.csv"
+      responses:
+        '200':
+          description: File upload result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PutResponse'
+              examples:
+                success:
+                  value:
+                    success: true
+                    error: null
+                failure:
+                  value:
+                    success: false
+                    error: "Disk quota exceeded"
+
+    get:
+      summary: Read file from storage
+      description: |
+        Download file from storage to memory or stream.
+
+        **Implementation Notes**:
+        - Return file content as bytes
+        - Stream large files (> 100 MB) to avoid memory exhaustion
+        - Verify checksum if available
+        - Handle file not found gracefully
+      operationId: get
+      parameters:
+        - name: file_path
+          in: query
+          required: true
+          schema:
+            type: string
+            format: path
+          description: Absolute path to file
+      responses:
+        '200':
+          description: File content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetResponse'
+              examples:
+                success:
+                  value:
+                    content: "c3ViamVjdF9pZCxzZXNzaW9uX2RhdGUscHJvdG9jb2wKTTAwMSwyMDI1LTEwLTI3LGZlYXJfY29uZGl0aW9uaW5n"
+                    error: null
+                not_found:
+                  value:
+                    content: null
+                    error: "File not found: /storage/experiments/M001/metadata.csv"
+
+  /exists:
+    get:
+      summary: Check if file/directory exists
+      description: |
+        Verify existence of file or directory.
+
+        **Implementation Notes**:
+        - Return True if path exists (file or directory)
+        - Return False if path does not exist
+        - Do NOT raise error for non-existent paths
+      operationId: exists
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema:
+            type: string
+            format: path
+          description: Absolute path to check
+      responses:
+        '200':
+          description: Existence check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExistsResponse'
+              examples:
+                exists:
+                  value:
+                    exists: true
+                does_not_exist:
+                  value:
+                    exists: false
+
+  /list:
+    get:
+      summary: List files in directory
+      description: |
+        List all files and subdirectories in a directory.
+
+        **Implementation Notes**:
+        - Return list of absolute paths
+        - If recursive=True, include all subdirectories
+        - If recursive=False, only immediate children
+        - Sort results alphabetically
+        - Handle empty directories (return empty list)
+      operationId: list
+      parameters:
+        - name: directory_path
+          in: query
+          required: true
+          schema:
+            type: string
+            format: path
+          description: Absolute path to directory
+        - name: recursive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Include subdirectories recursively
+      responses:
+        '200':
+          description: Directory listing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+              examples:
+                success:
+                  value:
+                    files:
+                      - "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/TDT_Tank"
+                      - "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/protocol.csv"
+                      - "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw/video_01.mp4"
+                    error: null
+                failure:
+                  value:
+                    files: []
+                    error: "Directory not found: /storage/experiments/M999"
+
+  /watch:
+    post:
+      summary: Watch directory for changes (async)
+      description: |
+        Start asynchronous directory watcher for file system events.
+
+        **Implementation Notes**:
+        - Use `watchfiles` library (local adapter)
+        - Use webhook APIs (cloud adapters: OneDrive, Box)
+        - Invoke `event_handler` callback for each event
+        - Debounce events (wait for file stability, e.g., 30 seconds)
+        - Filter events: only notify on file creation (ignore modifications to open files)
+        - Return unique watcher ID for future reference
+
+        **Event Handler Signature**:
+        ```python
+        async def event_handler(event: FileEvent) -> None:
+            # Process file system event
+            # Example: Check if all required files present → trigger preprocessing
+            pass
+        ```
+
+        **Readiness Detection Logic** (in event handler):
+        - **Fiber Photometry**: TDT tank folder + protocol CSV → ready
+        - **Video**: At least one video file (.mp4/.avi) → ready
+        - **Combined**: All of the above → ready
+      operationId: watch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                directory_path:
+                  type: string
+                  format: path
+                  description: Absolute path to directory to watch
+                event_handler:
+                  type: string
+                  description: Event handler function name (must be registered)
+              required:
+                - directory_path
+                - event_handler
+            examples:
+              local_watch:
+                value:
+                  directory_path: "/storage/experiments/M001/behavior/fear_conditioning/2025-10-27/raw"
+                  event_handler: "check_readiness"
+      responses:
+        '200':
+          description: Watcher initialization result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WatchResponse'
+              examples:
+                success:
+                  value:
+                    watcher_id: "watcher_M001_2025-10-27_fear_conditioning"
+                    error: null
+                failure:
+                  value:
+                    watcher_id: null
+                    error: "Directory does not exist: /storage/experiments/M999"
+
+externalDocs:
+  description: Storage Adapter Implementation Guide
+  url: https://github.com/your-org/elabftw-app/blob/main/adapters/storage/README.md

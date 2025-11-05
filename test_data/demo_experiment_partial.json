@@ -1,0 +1,137 @@
+{
+  "title": "Test Fiber Photometry Session - M001 - Partial Metadata",
+  "date": "20241101",
+  "body": "<h1>Demo Experiment for Journey A Testing</h1>\n<p>This experiment contains <strong>partial metadata</strong> to test the validation workflow.</p>\n<h2>Purpose</h2>\n<ul>\n<li>Test Journey A: Validate &amp; Fix Existing Entry</li>\n<li>Intentionally missing 8 required fields</li>\n<li>Used for automated and manual testing</li>\n</ul>\n<h2>Missing Required Fields</h2>\n<p>This experiment is missing:</p>\n<ol>\n<li>Injection Location</li>\n<li>Injection AP (mm)</li>\n<li>Injection ML (mm)</li>\n<li>Injection DV (mm)</li>\n<li>Experimenter</li>\n<li>Fiber Numerical Aperture</li>\n<li>Emission Wavelength (nm)</li>\n<li>Recording Location</li>\n</ol>\n<p>These should trigger validation errors in Journey A.</p>",
+  "metadata": {
+    "extra_fields": {
+      "Subject ID": {
+        "type": "text",
+        "value": "M001"
+      },
+      "Species": {
+        "type": "text",
+        "value": "Mus musculus"
+      },
+      "Sex": {
+        "type": "text",
+        "value": "M"
+      },
+      "Age (days)": {
+        "type": "text",
+        "value": "90"
+      },
+      "Strain": {
+        "type": "text",
+        "value": "C57BL/6J"
+      },
+      "Weight (grams)": {
+        "type": "text",
+        "value": "25.3"
+      },
+      "Surgery Date": {
+        "type": "text",
+        "value": "2024-10-15"
+      },
+      "Indicator Label": {
+        "type": "text",
+        "value": "GCaMP6f"
+      },
+      "Viral Vector Name": {
+        "type": "text",
+        "value": "AAV9-hSyn-GCaMP6f"
+      },
+      "Viral Titer": {
+        "type": "text",
+        "value": "1e13 GC/mL"
+      },
+      "Injection Volume (nL)": {
+        "type": "text",
+        "value": "300"
+      },
+      "Fiber Implant Depth (mm)": {
+        "type": "text",
+        "value": "5.2"
+      },
+      "Session ID": {
+        "type": "text",
+        "value": "session_20241101_M001"
+      },
+      "Session Date": {
+        "type": "text",
+        "value": "2024-11-01"
+      },
+      "Session Time": {
+        "type": "text",
+        "value": "14:30"
+      },
+      "Session Description": {
+        "type": "text",
+        "value": "Baseline recording session"
+      },
+      "Laboratory": {
+        "type": "text",
+        "value": "Neural Dynamics Lab"
+      },
+      "Institution": {
+        "type": "text",
+        "value": "NIH NIMH"
+      },
+      "Optical Fiber Model": {
+        "type": "text",
+        "value": "Doric MFC_400/430-0.48"
+      },
+      "Fiber Core Diameter (μm)": {
+        "type": "text",
+        "value": "400"
+      },
+      "Excitation Wavelength (nm)": {
+        "type": "text",
+        "value": "470"
+      },
+      "Dichroic Mirror Cut-on (nm)": {
+        "type": "text",
+        "value": "495"
+      },
+      "LED Power (mW)": {
+        "type": "text",
+        "value": "0.5"
+      },
+      "PMT Gain": {
+        "type": "text",
+        "value": "5"
+      },
+      "Channel Name": {
+        "type": "text",
+        "value": "GCaMP6f_470nm"
+      },
+      "Sampling Rate (Hz)": {
+        "type": "text",
+        "value": "1000"
+      },
+      "Protocol Name": {
+        "type": "text",
+        "value": "FP-BASELINE-V1"
+      },
+      "Data File Path": {
+        "type": "text",
+        "value": "/data/fp_recordings/M001/session_20241101"
+      },
+      "Behavioral Task": {
+        "type": "text",
+        "value": "Freely moving"
+      },
+      "Notes": {
+        "type": "text",
+        "value": "Animal showed good signal-to-noise ratio. No artifacts detected."
+      },
+      "Analysis Status": {
+        "type": "text",
+        "value": "Pending"
+      },
+      "Quality Control": {
+        "type": "text",
+        "value": "Pass"
+      }
+    }
+  }
+}

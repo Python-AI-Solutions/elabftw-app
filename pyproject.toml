@@ -1,0 +1,78 @@
+[project]
+name = "elabftw-app"
+version = "0.1.0"
+description = "eLabFTW application with neuroscience data management capabilities"
+authors = [
+    {name = "heetshah16", email = "shah.13@iitj.ac.in"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.119.1",
+    "uvicorn>=0.38.0",
+    "watchfiles>=1.1.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.12.3",
+    "rich>=14.2.0",
+    "loguru>=0.7.3",
+    "streamlit>=1.50.0",
+    "pynwb>=3.1.2",
+    "dandi>=0.67.2",
+    "neuroconv>=0.6.0",
+    "ndx-fiber-photometry>=0.3.0",
+    "elabapi-python>=0.9.0",
+    "celery>=5.5.3",
+    "aiofiles>=25.1.0",
+    "python-multipart>=0.0.20",
+    "redis>=5.0.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.14.2",
+    "mypy>=1.18.2",
+    "pre-commit>=4.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = []
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
