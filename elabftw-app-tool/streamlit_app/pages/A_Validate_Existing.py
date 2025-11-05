@@ -19,8 +19,19 @@ import streamlit as st
 from pathlib import Path
 import sys
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Load .env from project root (three levels up from this file)
+    env_path = Path(__file__).parent.parent.parent.parent / '.env'
+    load_dotenv(env_path)
+except ImportError:
+    pass  # dotenv not installed, will use system env vars
+
 # Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
+streamlit_app_dir = Path(__file__).parent.parent  # elabftw-app-tool/streamlit_app
+elabftw_tool_dir = streamlit_app_dir.parent  # elabftw-app-tool
+sys.path.append(str(elabftw_tool_dir))
 
 try:
     import elabapi_python
@@ -32,8 +43,12 @@ except ImportError:
 try:
     from scripts.parse_elabftw_metadata import ELabFTWMetadataParser
     PARSER_AVAILABLE = True
-except ImportError:
+    print(f"✓ Parser imported successfully from: {elabftw_tool_dir / 'scripts' / 'parse_elabftw_metadata.py'}")
+except ImportError as e:
     PARSER_AVAILABLE = False
+    print(f"❌ Failed to import parser: {e}")
+    print(f"   Tried to import from: {elabftw_tool_dir}")
+    print(f"   sys.path: {sys.path}")
 
 
 # Page configuration
@@ -147,12 +162,15 @@ def create_elabftw_client():
 
     try:
         configuration = elabapi_python.Configuration()
-        configuration.api_key['api_key'] = api_key
-        configuration.api_key_prefix['api_key'] = 'Authorization'
         configuration.host = f"{elabftw_url}/api/v2"
         configuration.verify_ssl = os.environ.get('ELABFTW_VERIFY_SSL', 'true').lower() == 'true'
 
+        # Create API client
         api_client = elabapi_python.ApiClient(configuration)
+
+        # Set Authorization header directly (this is the correct way for eLabFTW)
+        api_client.default_headers['Authorization'] = api_key
+
         return elabapi_python.ExperimentsApi(api_client)
     except Exception as e:
         st.error(f"❌ Failed to create eLabFTW client: {e}")
@@ -160,23 +178,55 @@ def create_elabftw_client():
 
 
 def load_experiment(experiment_id):
-    """Load experiment from eLabFTW."""
-    experiments_api = create_elabftw_client()
-    if not experiments_api:
-        return False, "API client not configured"
+    """Load experiment from eLabFTW using raw API call to handle metadata correctly."""
+    import requests
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    api_key = os.environ.get('ELABFTW_API_KEY')
+    elabftw_url = os.environ.get('ELABFTW_URL')
+    verify_ssl = os.environ.get('ELABFTW_VERIFY_SSL', 'true').lower() == 'true'
+
+    if not api_key or not elabftw_url:
+        return False, "API credentials not configured"
 
     try:
-        experiment = experiments_api.read_experiment(id=experiment_id)
-        return True, {
-            'id': experiment.id,
-            'title': experiment.title,
-            'body': experiment.body,
-            'metadata': experiment.metadata,
-            'created_at': experiment.created_at,
-            'modified_at': experiment.modified_at
-        }
-    except ApiException as e:
-        return False, f"API Error: {e}"
+        # Make raw API call to get proper metadata
+        response = requests.get(
+            f"{elabftw_url}/api/v2/experiments/{experiment_id}",
+            headers={'Authorization': api_key},
+            verify=verify_ssl
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+
+            # Parse metadata if it's a JSON string (double-encoded)
+            metadata = data.get('metadata', {})
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata)
+
+            # Further parse if metadata itself contains a JSON string
+            if isinstance(metadata, str):
+                metadata = json.loads(metadata)
+
+            # Extract the actual metadata if it's nested (eLabFTW returns nested structure)
+            if isinstance(metadata, dict) and 'metadata' in metadata:
+                metadata = metadata['metadata']
+
+            return True, {
+                'id': data.get('id'),
+                'title': data.get('title'),
+                'body': data.get('body'),
+                'metadata': metadata,
+                'created_at': data.get('created_at'),
+                'modified_at': data.get('modified_at')
+            }
+        else:
+            return False, f"API Error: {response.status_code} - {response.text}"
+
+    except json.JSONDecodeError as e:
+        return False, f"JSON decode error: {e}"
     except Exception as e:
         return False, f"Error: {e}"
 
@@ -184,28 +234,78 @@ def load_experiment(experiment_id):
 def validate_experiment(experiment_data):
     """Validate experiment against ndx-fiber-photometry schema."""
     if not PARSER_AVAILABLE:
+        print("❌ Parser not available")
         return [], [], {}, "Parser not available"
 
     try:
+        print("\n" + "=" * 70)
+        print("VALIDATION DEBUG")
+        print("=" * 70)
+
         # Create parser
         parser = ELabFTWMetadataParser(
             api_key=os.environ.get('ELABFTW_API_KEY', 'mock'),
-            elabftw_url=os.environ.get('ELABFTW_URL', 'https://mock.com')
+            elabftw_url=os.environ.get('ELABFTW_URL', 'https://mock.com'),
+            verify_ssl=os.environ.get('ELABFTW_VERIFY_SSL', 'true').lower() == 'true'
         )
+        print("✓ Parser created")
 
         # Get metadata
         metadata = experiment_data.get('metadata', {})
 
+        # Debug: Check metadata structure
+        print(f"\nMetadata type: {type(metadata)}")
+        print(f"Metadata is dict: {isinstance(metadata, dict)}")
+        if isinstance(metadata, dict):
+            print(f"Metadata keys: {list(metadata.keys())}")
+            if 'extra_fields' in metadata:
+                print(f"Extra fields count: {len(metadata['extra_fields'])}")
+                print(f"Extra fields type: {type(metadata['extra_fields'])}")
+                # Show first few field names
+                field_names = list(metadata['extra_fields'].keys())[:5]
+                print(f"First 5 fields: {field_names}")
+        else:
+            print(f"⚠️ Metadata is not a dict! Value: {metadata}")
+
         # Validate
+        print("\nCalling validate_required_fields()...")
         errors = parser.validate_required_fields(metadata)
+        print(f"✓ Validation completed. Errors found: {len(errors)}")
+
+        if errors:
+            print("\nValidation errors:")
+            for i, error in enumerate(errors, 1):
+                print(f"  {i}. {error}")
+        else:
+            print("  No errors - validation passed!")
+
+        print("\nCalling validate_data_ranges()...")
         warnings = parser.validate_data_ranges(metadata)
+        print(f"✓ Data range validation completed. Warnings: {len(warnings)}")
 
         # Map to NWB
+        print("\nCalling map_to_nwb_metadata()...")
         nwb_metadata = parser.map_to_nwb_metadata(metadata)
+        print(f"✓ NWB mapping completed. Keys: {list(nwb_metadata.keys())}")
+
+        print("\n" + "=" * 70)
+        print(f"VALIDATION COMPLETE: {len(errors)} errors, {len(warnings)} warnings")
+        print("=" * 70 + "\n")
 
         return errors, warnings, nwb_metadata, None
 
     except Exception as e:
+        # Print the actual error to terminal
+        print("\n" + "!" * 70)
+        print("EXCEPTION DURING VALIDATION")
+        print("!" * 70)
+        print(f"Error: {e}")
+        import traceback
+        traceback.print_exc()
+        print("!" * 70 + "\n")
+
+        # Also show in Streamlit
+        st.error(f"⚠️ Exception during validation: {e}")
         return [], [], {}, f"Validation error: {e}"
 
 
@@ -217,21 +317,34 @@ def get_field_value_from_metadata(metadata, field_name):
 
 
 def update_experiment_metadata(experiment_id, new_fields):
-    """Update experiment with missing fields."""
-    experiments_api = create_elabftw_client()
-    if not experiments_api:
-        return False, "API client not configured"
+    """Update experiment with missing fields using raw API call."""
+    import requests
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    api_key = os.environ.get('ELABFTW_API_KEY')
+    elabftw_url = os.environ.get('ELABFTW_URL')
+    verify_ssl = os.environ.get('ELABFTW_VERIFY_SSL', 'true').lower() == 'true'
+
+    if not api_key or not elabftw_url:
+        return False, "API credentials not configured"
 
     try:
-        # Get current experiment
-        experiment = experiments_api.read_experiment(id=experiment_id)
-        current_metadata = experiment.metadata or {}
+        # Get current experiment metadata
+        success, exp_data = load_experiment(experiment_id)
+        if not success:
+            return False, f"Failed to load experiment: {exp_data}"
+
+        current_metadata = exp_data.get('metadata', {})
         current_extra_fields = current_metadata.get('extra_fields', {})
 
         # Merge new fields
         for field_name, value in new_fields.items():
             if field_name not in current_extra_fields or not current_extra_fields[field_name].get('value'):
-                current_extra_fields[field_name] = {'value': str(value)}
+                current_extra_fields[field_name] = {
+                    'type': 'text',
+                    'value': str(value)
+                }
 
         # Update metadata
         updated_metadata = {
@@ -239,16 +352,22 @@ def update_experiment_metadata(experiment_id, new_fields):
             'elabftw': current_metadata.get('elabftw', {})
         }
 
-        # Patch experiment
-        result = experiments_api.patch_experiment(
-            id=experiment_id,
-            body={'metadata': updated_metadata}
+        # Patch experiment using raw API
+        response = requests.patch(
+            f"{elabftw_url}/api/v2/experiments/{experiment_id}",
+            headers={
+                'Authorization': api_key,
+                'Content-Type': 'application/json'
+            },
+            json={'metadata': json.dumps(updated_metadata)},  # Encode as JSON string
+            verify=verify_ssl
         )
 
-        return True, "Experiment updated successfully"
+        if response.status_code == 200:
+            return True, "Experiment updated successfully"
+        else:
+            return False, f"API Error: {response.status_code} - {response.text}"
 
-    except ApiException as e:
-        return False, f"API Error: {e}"
     except Exception as e:
         return False, f"Error: {e}"
 

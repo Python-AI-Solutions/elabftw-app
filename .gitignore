@@ -8,3 +8,8 @@ ArchiveFlow.zip
 # Local deployment files (contain sensitive configuration)
 DEPLOY-LOCAL.md
 deploy-local.py
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local

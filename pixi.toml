@@ -14,6 +14,10 @@ lint = "ruff check src/ tests/"
 format = "ruff format src/ tests/"
 type-check = "mypy src/"
 validate-nwb = "python -m scripts.validate_nwb"
+create-demo = "python elabftw-app-tool/scripts/create_demo_experiment.py"
+verify-setup = "python tests/verify_demo_experiment.py"
+run-tests = "python tests/run_tests.py"
+streamlit = "streamlit run elabftw-app-tool/streamlit_app/Home.py"
 
 [dependencies]
 python = "3.13.*"
@@ -40,5 +44,6 @@ pip = ">=25.2,<26"
 
 [pypi-dependencies]
 neuroconv = ">=0.6.0"
-ndx-fiber-photometry = ">=0.3.0"
+ndx-fiber-photometry = ">=0.2.0"
 elabapi-python = ">=0.9.0"
+python-dotenv = ">=1.0.0"

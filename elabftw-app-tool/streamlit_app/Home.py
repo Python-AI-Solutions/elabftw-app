@@ -16,6 +16,15 @@ License: MIT
 import streamlit as st
 from pathlib import Path
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    # Load .env from project root (three levels up from this file)
+    env_path = Path(__file__).parent.parent.parent / '.env'
+    load_dotenv(env_path)
+except ImportError:
+    pass  # dotenv not installed, will use system env vars
+
 # Page configuration
 st.set_page_config(
     page_title="eLabFTW Fiber Photometry Tool",
