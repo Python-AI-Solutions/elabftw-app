@@ -2,29 +2,32 @@
 
 ## Quick Start
 
-`deploy-local.py` spins up a local HTTPS stack with Docker and seeds it with a sysadmin account so you can log in immediately.
+`deploy-local.py` wipes any existing stack by default, boots the local HTTPS docker-compose stack, and seeds a deterministic sysadmin account so you can log in immediately.
 
 ## Get Started
 
 ```bash
 uv run python deploy-local.py
 ```
+- add `--keep` to reuse existing containers/volumes instead of calling `docker compose down -v`
+- add `--refresh-config` to redownload the upstream `docker-compose.yml`
 
 What the script does:
 
-- pulls the official `docker-compose.yml` and tweaks it for HTTPS on `https://localhost:3148`
-- switches persistent data to Docker volumes (`elabftw_elabftw_mysql`, `elabftw_elabftw_web`)
-- runs `docker compose up -d` and waits for MySQL + eLabFTW to be ready
-- runs `bin/init db:install` on first boot
-- creates or verifies the test sysadmin account:
+- downloads/patches the official `docker-compose.yml` for HTTPS on `https://localhost:3148`
+- wipes containers/volumes (unless `--keep`) and runs `docker compose up -d`
+- waits for the `elabftw` container to report healthy, then runs `bin/init db:install` (idempotent)
+- upserts the sysadmin account with deterministic credentials (override via `ELABFTW_DEFAULT_*` env vars):
   - email `admin@localhost`
-  - password `elabftw123` (override with `ELABFTW_TEST_PASSWORD`)
-  - read/write API token printed to the console (`Local Dev Token` by default; override the value with `ELABFTW_TEST_API_TOKEN` and its label with `ELABFTW_TEST_API_TOKEN_NAME`)
+  - password `elabftw123`
+  - API token `Local Dev Token` with fixed body (`ELABFTW_DEFAULT_API_TOKEN_BODY`)
+- renames the database container to `elabftw-mysql` (override with `ELABFTW_MYSQL_CONTAINER`) to avoid conflicts on shared Docker hosts
+- rewrites `.env` so `ELABFTW_API_KEY`, `ELABFTW_URL=https://localhost:3148`, and `ELABFTW_VERIFY_SSL=false` match the running stack
 
 ## Daily Use
 
 - open `https://localhost:3148`, accept the self‑signed certificate warning, and log in with the credentials above
-- rerun the script any time; choose to keep or wipe existing volumes when prompted
+- rerun the script any time; use `--keep` if you want to preserve existing data
 - useful commands:
   ```bash
   docker compose ps          # show status
@@ -35,7 +38,7 @@ What the script does:
 
 ## Notes
 
-- The health checks can take a minute on first boot; the script waits before seeding the user.
-- If the admin account already exists your password is left untouched; the script will just report the user ID.
+- First boot can take a minute while MySQL and PHP warm up; the script polls until the `elabftw` container reports healthy (or times out with a warning).
+- Credentials are idempotent: rerunning the script resets the password/token to the deterministic values unless you override them via environment variables.
 
 For production installs or deeper configuration, see the upstream docs: https://doc.elabftw.net
