@@ -30,7 +30,7 @@ import re
 
 BASE_DIR = Path(__file__).resolve().parent
 COMPOSE_FILE = BASE_DIR / "docker-compose.yml"
-ENV_FILE = BASE_DIR / ".env"
+ENV_FILE = BASE_DIR.parent / ".env"  # Create .env in project root, not docker-setup/
 
 DEFAULT_EMAIL = os.environ.get("ELABFTW_DEFAULT_EMAIL", "admin@localhost")
 DEFAULT_PASSWORD = os.environ.get("ELABFTW_DEFAULT_PASSWORD", "elabftw123")
@@ -73,7 +73,7 @@ def run(cmd: str, *, check: bool = True, capture: bool = True) -> subprocess.Com
         capture_output=capture,
     )
     if check and result.returncode != 0:
-        sys.stderr.write(f"\n❌ Command failed: {cmd}\n")
+        sys.stderr.write(f"\n[ERROR] Command failed: {cmd}\n")
         if result.stderr:
             sys.stderr.write(result.stderr + "\n")
         sys.exit(result.returncode)
@@ -83,16 +83,16 @@ def run(cmd: str, *, check: bool = True, capture: bool = True) -> subprocess.Com
 def download_compose(force: bool) -> None:
     if COMPOSE_FILE.exists() and not force:
         return
-    print("📥 Fetching docker-compose.yml from get.elabftw.net ...")
+    print("[DOWNLOAD] Fetching docker-compose.yml from get.elabftw.net ...")
     url = "https://get.elabftw.net/?config"
     try:
         with urllib.request.urlopen(url) as resp:
             content = resp.read().decode("utf-8")
     except Exception as exc:  # pragma: no cover - network failure
-        sys.stderr.write(f"❌ Unable to download compose file: {exc}\n")
+        sys.stderr.write(f"[ERROR] Unable to download compose file: {exc}\n")
         sys.exit(1)
     COMPOSE_FILE.write_text(content)
-    print("   ✅ Saved compose file.")
+    print("   [OK] Saved compose file.")
 
 
 def configure_compose() -> None:
@@ -138,14 +138,14 @@ def wait_for_health(container: str, timeout: int = 180) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         status = run(
-            f"docker inspect {container} --format='{{{{.State.Health.Status}}}}'",
+            f"docker inspect {container} --format={{{{.State.Health.Status}}}}",
             capture=True,
             check=False,
         )
         if status.returncode == 0 and status.stdout.strip() == "healthy":
             return
         time.sleep(3)
-    print(f"⚠️  {container} did not become healthy within {timeout}s – continuing anyway.")
+    print(f"[WARNING] {container} did not become healthy within {timeout}s - continuing anyway.")
 
 
 def php_hash(value: str) -> str:
@@ -162,12 +162,12 @@ def php_hash(value: str) -> str:
 
 def get_mysql_password() -> str:
     result = run(
-        f"docker exec {MYSQL_CONTAINER} sh -c 'echo \"$MYSQL_PASSWORD\"'",
+        f"docker exec {MYSQL_CONTAINER} printenv MYSQL_PASSWORD",
         capture=True,
         check=False,
     )
     if result.returncode != 0 or not result.stdout.strip():
-        sys.stderr.write("❌ Unable to read MYSQL_PASSWORD from mysql container.\n")
+        sys.stderr.write("[ERROR] Unable to read MYSQL_PASSWORD from mysql container.\n")
         sys.exit(1)
     return result.stdout.strip()
 
@@ -248,13 +248,13 @@ def provision_credentials(mysql_password: str) -> tuple[str, str]:
 
     result = run_mysql(sql, mysql_password)
     if result.returncode != 0:
-        sys.stderr.write("❌ Failed to configure database credentials:\n")
+        sys.stderr.write("[ERROR] Failed to configure database credentials:\n")
         sys.stderr.write(result.stderr)
         sys.exit(result.returncode)
 
     rows = [line.strip() for line in result.stdout.splitlines() if line.strip()]
     if not rows:
-        sys.stderr.write("❌ Unable to read user/token ids from SQL output.\n")
+        sys.stderr.write("[ERROR] Unable to read user/token ids from SQL output.\n")
         sys.exit(1)
 
     user_id, token_id = rows[-1].split("\t")
@@ -306,24 +306,24 @@ def main() -> None:
     configure_compose()
 
     if not args.keep:
-        print("🧹 Removing any existing containers/volumes (docker compose down -v)...")
+        print("[CLEAN] Removing any existing containers/volumes (docker compose down -v)...")
         run("docker compose down -v", check=False, capture=False)
 
-    print("🚀 Starting docker compose stack...")
+    print("[START] Starting docker compose stack...")
     run("docker compose up -d --remove-orphans", capture=False)
 
-    print("⏳ Waiting for PHP container health check...")
+    print("[WAIT] Waiting for PHP container health check...")
     wait_for_health(PHP_CONTAINER)
 
-    print("🛠️ Running bin/init db:install (idempotent)...")
+    print("[SETUP] Running bin/init db:install (idempotent)...")
     run(f"docker exec {PHP_CONTAINER} bin/init db:install", check=False, capture=False)
 
     mysql_password = get_mysql_password()
 
-    print("🔐 Upserting sysadmin user + API token...")
+    print("[AUTH] Upserting sysadmin user + API token...")
     user_id, api_token = provision_credentials(mysql_password)
 
-    print("\n✅ Stack ready!")
+    print("\n[SUCCESS] Stack ready!")
     print(f"   URL:      {SITE_URL}")
     print(f"   Email:    {DEFAULT_EMAIL}")
     print(f"   Password: {DEFAULT_PASSWORD}")
@@ -331,7 +331,7 @@ def main() -> None:
 
     update_env_file(api_token)
     print(f"   .env updated at {ENV_FILE}")
-    print("\nDone ✅")
+    print("\n[DONE] Setup complete!")
 
 
 if __name__ == "__main__":
