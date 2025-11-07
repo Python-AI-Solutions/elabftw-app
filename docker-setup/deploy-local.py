@@ -98,12 +98,29 @@ def download_compose(force: bool) -> None:
 def configure_compose() -> None:
     content = COMPOSE_FILE.read_text()
 
-    content = re.sub(
-        r"(\s+)(- '443:443')",
-        r"\1- '3148:443'\n\1\2",
-        content,
-        count=1,
-    )
+    # Remove any duplicate '3148:443' port mappings (keep only one)
+    # Remove all existing '3148:443' entries, handling various whitespace patterns
+    # Keep removing until none remain
+    while True:
+        new_content = re.sub(
+            r"\n\s+- '3148:443'(\s*\n)*",
+            "\n",
+            content,
+            flags=re.MULTILINE,
+        )
+        if new_content == content:
+            break
+        content = new_content
+    # Then add one '3148:443' before '443:443' if '443:443' exists
+    # Match including the newline before the port entry
+    # \1 includes newline+spaces, so no extra \n needed in replacement
+    if re.search(r"- '443:443'", content):
+        content = re.sub(
+            r"(\n\s+)(- '443:443')",
+            r"\1- '3148:443'\1\2",
+            content,
+            count=1,
+        )
     content = re.sub(
         r"(\s+- SITE_URL=).*$",
         rf"\1{SITE_URL}",
@@ -127,6 +144,80 @@ def configure_compose() -> None:
         rf"\1{MYSQL_CONTAINER}",
         content,
     )
+
+    # Remove any existing healthcheck blocks from web service section only
+    # (to avoid duplicates when re-running the script)
+    # Match healthcheck blocks that appear before the mysql service section
+    # Note: Match "  mysql:" (2 spaces) for the service definition, not "      mysql:" (6 spaces) in depends_on
+    web_to_mysql_section = re.search(
+        r"^\s+web:.*?(?=^  mysql:)",
+        content,
+        re.MULTILINE | re.DOTALL,
+    )
+    if web_to_mysql_section:
+        web_section_content = web_to_mysql_section.group(0)
+        # Remove all healthcheck blocks from web section
+        # Match healthcheck: and all its nested properties (lines starting with 6 spaces)
+        # Stop when we hit a line starting with 4 spaces (next key) or blank line + 4-space key
+        cleaned_web_section = web_section_content
+        # Keep removing healthcheck blocks until none remain
+        while True:
+            # Match healthcheck: followed by lines with 6-space indentation until next 4-space key
+            # Handle multiple blank lines before the next key
+            new_content = re.sub(
+                r"\n    healthcheck:.*?(?=\n    [a-z_][^\n]*:|\n+    [a-z_][^\n]*:|\Z)",
+                "",
+                cleaned_web_section,
+                flags=re.MULTILINE | re.DOTALL,
+            )
+            # Also remove any comment lines that mention health check before healthcheck
+            new_content = re.sub(
+                r"\n    #.*health check.*\n",
+                "",
+                new_content,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
+            if new_content == cleaned_web_section:
+                break
+            cleaned_web_section = new_content
+        # Replace the web section with cleaned version
+        content = content.replace(web_section_content, cleaned_web_section)
+    
+    # Add optimized healthcheck to web service before networks section
+    # Optimized timing: reduced start_period and retries for faster health reporting
+    # Note: Use 4 spaces for top-level, 6 spaces for nested properties to match YAML structure
+    healthcheck_block = """    # health check to ensure the web service is ready
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsk https://localhost/healthcheck.php | grep -q ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+"""
+    # Insert healthcheck before the networks section of the web service
+    # Match pattern: networks section followed by mysql service comment (unique to web service)
+    pattern = r"(\s+networks:\s*\n\s+- elabftw-net\s*\n\s*# the mysql database image)"
+    if re.search(pattern, content, flags=re.MULTILINE):
+        content = re.sub(
+            pattern,
+            healthcheck_block + r"\1",
+            content,
+            flags=re.MULTILINE,
+            count=1,
+        )
+    else:
+        # Fallback: insert before networks section if mysql comment pattern doesn't match
+        # This handles cases where the compose file structure is slightly different
+        fallback_pattern = r"(\s+networks:\s*\n\s+- elabftw-net)"
+        if re.search(fallback_pattern, content, flags=re.MULTILINE):
+            # Find the first occurrence (should be web service)
+            content = re.sub(
+                fallback_pattern,
+                healthcheck_block + r"\1",
+                content,
+                flags=re.MULTILINE,
+                count=1,
+            )
 
     if not re.search(r"^volumes:\s*$", content, re.MULTILINE):
         content = content.rstrip() + "\n\nvolumes:\n  elabftw_web:\n  elabftw_mysql:\n"
@@ -290,12 +381,13 @@ def update_env_file(api_token: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Bootstrap eLabFTW docker stack.")
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
         "--keep",
         action="store_true",
         help="Reuse existing containers/volumes instead of wiping first.",
     )
-    parser.add_argument(
+    group.add_argument(
         "--refresh-config",
         action="store_true",
         help="Redownload docker-compose.yml from get.elabftw.net before starting.",
