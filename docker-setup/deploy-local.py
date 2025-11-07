@@ -30,7 +30,7 @@ import re
 
 BASE_DIR = Path(__file__).resolve().parent
 COMPOSE_FILE = BASE_DIR / "docker-compose.yml"
-ENV_FILE = BASE_DIR.parent / ".env"  # Create .env in project root, not docker-setup/
+ENV_FILE = BASE_DIR / ".env"  # Create .env in project root, not docker-setup/
 
 DEFAULT_EMAIL = os.environ.get("ELABFTW_DEFAULT_EMAIL", "admin@localhost")
 DEFAULT_PASSWORD = os.environ.get("ELABFTW_DEFAULT_PASSWORD", "elabftw123")
