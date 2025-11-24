@@ -12,7 +12,8 @@
       "Bash(docker inspect:*)",
       "Bash(docker exec:*)",
       "Bash(pixi run:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(docker cp:*)"
     ],
     "deny": [],
     "ask": []

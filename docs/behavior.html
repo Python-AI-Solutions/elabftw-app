@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Behavior Data Entry Form</title>
+</head>
+
+<body>
+    <p>Date:&nbsp;<input maxlength="25" name="date_date" type="text" /></p>
+
+    <p>Start Time:&nbsp;<input maxlength="256" name="start" type="text" /></p>
+
+    <p>Personnel Running Task:&nbsp;<input maxlength="256" name="personnel" type="text" /></p>
+
+    <p>Behavior Room:&nbsp;<select name="room" style="appearance: none;">
+            <option value="2D_717">2D-717</option>
+            <option value="2D_715">2D-715</option>
+            <option value="RBC_BD825">RBC BD825</option>
+            <option value="RBC_BD836">RBC BD836</option>
+            <option value="2D_711">2D-711</option>
+        </select></p>
+
+    <p>Experiment:&nbsp;<input name="experiment" size="40" type="text" /></p>
+
+    <p>Subjects:&nbsp;<textarea cols="100" name="subjects" rows="2"></textarea></p>
+
+    <p>Manipulation:&nbsp;<input name="manipulation" size="40" type="text" /></p>
+
+    <p>Video File Path:&nbsp;<input name="video_file_path" size="40" type="text" /></p>
+
+    <p>AnyMaze Protocol:&nbsp;<input name="protocol" size="40" type="text" /></p>
+
+    <p>Cue Information:&nbsp;<input name="cue" size="40" type="text" /></p>
+
+    <p>Reward Information:&nbsp;<input name="reward" size="40" type="text" /></p>
+
+    <p>&nbsp;</p>
+
+    <p>Table for Experimental Outcomes (edit column titles to match whatever is needed for your protocol):</p>
+
+    <p>&nbsp;</p>
+
+    <table align="left" border="1" cellpadding="1" cellspacing="1" style="width: 706px;">
+        <tbody>
+            <tr>
+                <td style="width: 58px; text-align: center;"><strong>Mouse</strong></td>
+                <td style="width: 58px;"><input name="p65-a" size="12" type="text" value="Mouse Weight" /></td>
+                <td style="width: 93px;"><input name="p1-a" size="12" type="text" value="Reward Consumed" /></td>
+                <td style="width: 69px;"><input name="p2-a" size="12" type="text" value="Shock Intensity" /></td>
+                <td style="width: 73px;"><input name="p3-a" size="12" type="text" value="Box #" /></td>
+                <td style="width: 22px;"><input name="p4-a" size="12" type="text" value="Novel Object Side" /></td>
+                <td style="width: 9px;"><input name="p5-a" size="12" type="text" value="Sucrose Side" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m1-a" type="text" /></td>
+                <td style="width: 58px;"><input name="a1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="a2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="a3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="a4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="a5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="a6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m2-a" type="text" /></td>
+                <td style="width: 58px;"><input name="b1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="b2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="b3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="b4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="b5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="b6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m3-a" type="text" /></td>
+                <td style="width: 58px;"><input name="c1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="c2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="c3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="c4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="c5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="c6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m4-a" type="text" /></td>
+                <td style="width: 58px;"><input name="d1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="d2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="d3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="d4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="d5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="d6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m5-a" type="text" /></td>
+                <td style="width: 58px;"><input name="e1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="e2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="e3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="e4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="e5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="e6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m6-a" type="text" /></td>
+                <td style="width: 58px;"><input name="f1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="f2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="f3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="f4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="f5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="f6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m7-a" type="text" /></td>
+                <td style="width: 58px;"><input name="g1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="g2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="g3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="g4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="g5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="g6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m8-a" type="text" /></td>
+                <td style="width: 58px;"><input name="h1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="h2-a" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="h3-a" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="h4-a" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="h5-a" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="h6-a" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m9" type="text" /></td>
+                <td style="width: 58px;"><input name="i1-a" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="i2" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="i3" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="i4" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="i5" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="i6" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m12" type="text" /></td>
+                <td style="width: 58px;"><input name="j1" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="j2" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="j3" size="12" type="text" /></td>
+                <td style="width: 73px;"><input name="j4" size="12" type="text" /></td>
+                <td style="width: 22px;"><input name="j5" size="12" type="text" /></td>
+                <td style="width: 9px;"><input name="j6" size="12" type="text" /></td>
+            </tr>
+            <tr>
+                <td style="width: 58px;"><input name="m10" type="text" /></td>
+                <td style="width: 58px;"><input name="k1" size="12" type="text" /></td>
+                <td style="width: 93px;"><input name="k2" size="12" type="text" /></td>
+                <td style="width: 69px;"><input name="k3" size="12" type="text" /></td>
+                <td style="width: 73px;">&nbsp;</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+
+</html>
