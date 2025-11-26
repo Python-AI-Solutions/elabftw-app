@@ -1,0 +1,30 @@
+{
+    "extra_fields": {
+        "Date": {"type": "date", "value": "", "required": true, "position": 1, "group_id": 1},
+        "Start Time": {"type": "time", "value": "", "position": 2, "group_id": 1},
+        "Personnel": {"type": "text", "value": "", "position": 3, "group_id": 1},
+        "Behavior Room": {"type": "select", "value": "", "options": ["2D-717", "2D-715", "RBC BD825", "RBC BD836", "2D-711"], "position": 4, "group_id": 1},
+        "Experiment": {"type": "text", "value": "", "position": 5, "group_id": 1},
+        "Subjects": {"type": "text", "value": "", "position": 6, "group_id": 1},
+        "Manipulation": {"type": "text", "value": "", "position": 7, "group_id": 1},
+        "Video File Path": {"type": "text", "value": "", "position": 8, "group_id": 1},
+        "AnyMaze Protocol": {"type": "text", "value": "", "position": 9, "group_id": 1},
+        "Cue Information": {"type": "text", "value": "", "position": 10, "group_id": 1},
+        "Reward Information": {"type": "text", "value": "", "position": 11, "group_id": 1},
+        "Subject ID": {"type": "text", "value": "", "position": 12, "group_id": 2},
+        "Weight": {"type": "number", "value": "", "units": ["g"], "position": 13, "group_id": 2},
+        "Reward Consumed": {"type": "text", "value": "", "position": 14, "group_id": 2},
+        "Shock Intensity": {"type": "text", "value": "", "position": 15, "group_id": 2},
+        "Box Number": {"type": "text", "value": "", "position": 16, "group_id": 2},
+        "Novel Object Side": {"type": "text", "value": "", "position": 17, "group_id": 2},
+        "Sucrose Side": {"type": "text", "value": "", "position": 18, "group_id": 2},
+        "Subject Notes": {"type": "text", "value": "", "position": 19, "group_id": 2}
+    },
+    "elabftw": {
+        "display_main_text": false,
+        "extra_fields_groups": [
+            {"id": 1, "name": "Session Info"},
+            {"id": 2, "name": "Subject Details"}
+        ]
+    }
+}

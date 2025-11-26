@@ -1,0 +1,47 @@
+{
+    "_comment": "Experiment structure aligned with LabArchives Tejeda Lab structure from first-api-response.md",
+    "categories": [
+        {
+            "name": "Behavior",
+            "color": "#1abc9c",
+            "description": "Behavior experiment entries"
+        },
+        {
+            "name": "Histology",
+            "color": "#3498db",
+            "description": "Histology data entries"
+        },
+        {
+            "name": "Metadata",
+            "color": "#9b59b6",
+            "description": "Experiment metadata entries"
+        },
+        {
+            "name": "Photometry",
+            "color": "#e74c3c",
+            "description": "Fiber photometry data entries"
+        },
+        {
+            "name": "Surgeries",
+            "color": "#f39c12",
+            "description": "Surgery data entries"
+        }
+    ],
+    "tags": [
+        "Cohort 1",
+        "Cohort 2",
+        "Cohort 3",
+        "Cohort 4",
+        "Cohort 5",
+        "Baseline",
+        "Training Day 1",
+        "Training Day 2",
+        "Training Day 3",
+        "Training Day 4",
+        "Training Day 5",
+        "Testing",
+        "Implant",
+        "Injection",
+        "Implant and Injection"
+    ]
+}

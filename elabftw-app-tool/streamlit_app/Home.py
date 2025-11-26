@@ -33,9 +33,38 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS with enhanced styling
 st.markdown("""
 <style>
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    /* Hero header */
+    .hero-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        margin-bottom: 2rem;
+        text-align: center;
+        box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+
+    .hero-header h1 {
+        color: white;
+        font-size: 3rem;
+        margin: 0;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-header p {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.2rem;
+        margin-top: 1rem;
+    }
+
     .main-title {
         font-size: 3rem;
         font-weight: bold;
@@ -49,16 +78,18 @@ st.markdown("""
         text-align: center;
         margin-bottom: 3rem;
     }
+
+    /* Journey cards */
     .journey-card {
         padding: 2rem;
-        border-radius: 10px;
+        border-radius: 15px;
         margin: 1rem 0;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
     }
     .journey-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-8px);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
     }
     .journey-a {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -91,12 +122,16 @@ st.markdown("""
         opacity: 0.9;
         font-style: italic;
     }
+
+    /* Info section */
     .info-section {
-        background-color: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
         padding: 2rem;
-        border-radius: 10px;
+        border-radius: 15px;
         margin: 2rem 0;
     }
+
+    /* Feature cards */
     .feature-list {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -105,22 +140,73 @@ st.markdown("""
     }
     .feature-item {
         background-color: white;
-        padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid #3498db;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid #667eea;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease;
     }
+    .feature-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Button styling */
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 600;
+        padding: 0.75rem 2rem;
+        transition: all 0.3s ease;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+
+    /* Section titles */
+    .section-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #667eea;
+        display: inline-block;
+    }
+
+    /* Divider styling */
+    hr {
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #667eea, transparent);
+        margin: 2.5rem 0;
+    }
+
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# Header
-st.markdown('<div class="main-title">🧪 eLabFTW Fiber Photometry Tool</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">NWB-Compliant Metadata Management for ndx-fiber-photometry</div>', unsafe_allow_html=True)
+# Hero Header
+st.markdown("""
+<div class="hero-header">
+    <h1>🧪 eLabFTW Fiber Photometry Tool</h1>
+    <p>NWB-Compliant Metadata Management for ndx-fiber-photometry</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Introduction
 st.markdown("""
-This tool suite helps you manage fiber photometry experiment metadata in eLabFTW
-with full compliance to the **ndx-fiber-photometry** NWB extension standard.
-""")
+<div style="text-align: center; padding: 1rem 0; font-size: 1.1rem; color: #555;">
+    This tool suite helps you manage fiber photometry experiment metadata in eLabFTW
+    with full compliance to the <strong>ndx-fiber-photometry</strong> NWB extension standard.
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -210,6 +296,50 @@ col7, col8, col9 = st.columns([1, 2, 1])
 with col8:
     if st.button("🚀 Start Journey C", type="primary", use_container_width=True, key="journey_c"):
         st.switch_page("pages/C_Add_Template.py")
+
+st.markdown("---")
+
+# Data Entry Forms Section
+st.markdown("## 📝 Data Entry Forms")
+
+st.markdown("""
+These dynamic forms allow you to record experiment data with flexible tables.
+Add or remove rows/columns as needed for your specific protocol.
+""")
+
+col_form1, col_form2 = st.columns(2)
+
+with col_form1:
+    st.markdown("""
+    <div class="journey-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 1.5rem; border-radius: 10px;">
+        <div class="journey-title" style="font-size: 1.5rem; font-weight: bold;">🔬 Surgery Data Entry</div>
+        <div class="journey-desc" style="margin: 1rem 0;">
+        Record surgical procedures with dynamic tables for:<br>
+        • Viral vectors (add as many as needed)<br>
+        • Injection sites<br>
+        • Implant sites<br>
+        • Subjects/mice
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🚀 Open Surgery Form", type="primary", use_container_width=True, key="surgery_form"):
+        st.switch_page("pages/Surgery_Entry.py")
+
+with col_form2:
+    st.markdown("""
+    <div class="journey-card" style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%); color: white; padding: 1.5rem; border-radius: 10px;">
+        <div class="journey-title" style="font-size: 1.5rem; font-weight: bold;">🐭 Behavior Session</div>
+        <div class="journey-desc" style="margin: 1rem 0;">
+        Record behavior experiments with:<br>
+        • Session information<br>
+        • Dynamic outcome columns<br>
+        • Multiple subjects per session<br>
+        • Export to CSV/JSON
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("🚀 Open Behavior Form", type="primary", use_container_width=True, key="behavior_form"):
+        st.switch_page("pages/Behavior_Entry.py")
 
 st.markdown("---")
 

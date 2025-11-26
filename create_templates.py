@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Create eLabFTW Experiment Templates with Extra Fields
+Create eLabFTW Experiment Templates, Categories, and Tags
+
+Sets up the complete experiment structure aligned with the LabArchives
+Tejeda Lab structure as documented in first-api-response.md.
+
+Structure mapping:
+- Notebook -> eLabFTW Server (one per lab)
+- Experiment Directory -> Category (Behavior, Histology, Metadata, Photometry, Surgeries)
+- Cohort Directory -> Tag (Cohort 1, Cohort 2, Baseline, Training Day X, Testing, etc.)
+- Widget -> Template (Surgery Data Entry, Behavior Session)
 """
 
 import requests
 import json
 import sys
 import urllib3
+from pathlib import Path
 
 # Fix Windows console encoding
 if sys.platform == "win32":
@@ -22,103 +32,29 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ELABFTW_URL = "https://localhost:3148"
 API_ENDPOINT = f"{ELABFTW_URL}/api/v2"
 
-# Templates metadata
-SURGERY_TEMPLATE = {
-    "extra_fields": {
-        "Date of Surgery": {"type": "date", "value": "", "required": True, "position": 1, "group_id": 1},
-        "Experiment Description": {"type": "text", "value": "", "position": 2, "group_id": 1},
-        "Stereotax Number": {"type": "radio", "value": "", "options": ["1", "2", "3"], "position": 3, "group_id": 1},
-        "Intracranial Injection": {"type": "checkbox", "value": "", "position": 4, "group_id": 2},
-        "Implant": {"type": "checkbox", "value": "", "position": 5, "group_id": 2},
-        "Other Surgery Type": {"type": "text", "value": "", "position": 6, "group_id": 2},
-        "Glass Pipette": {"type": "checkbox", "value": "", "position": 7, "group_id": 3},
-        "Syringe Needle": {"type": "checkbox", "value": "", "position": 8, "group_id": 3},
-        "Other Injection Method": {"type": "text", "value": "", "position": 9, "group_id": 3},
-        "Virus Name": {"type": "text", "value": "", "position": 10, "group_id": 4},
-        "Virus Source": {"type": "text", "value": "", "position": 11, "group_id": 4},
-        "Virus Cat#": {"type": "text", "value": "", "position": 12, "group_id": 4},
-        "Virus Lot#": {"type": "text", "value": "", "position": 13, "group_id": 4},
-        "Virus Titer": {"type": "number", "value": "", "units": ["vg/ml"], "position": 14, "group_id": 4},
-        "Virus Dilution": {"type": "text", "value": "", "position": 15, "group_id": 4},
-        "Brain Area": {"type": "text", "value": "", "position": 16, "group_id": 5},
-        "Hemisphere": {"type": "radio", "value": "", "options": ["L", "R"], "position": 17, "group_id": 5},
-        "AP Coordinate": {"type": "number", "value": "", "units": ["mm"], "position": 18, "group_id": 5},
-        "ML Coordinate": {"type": "number", "value": "", "units": ["mm"], "position": 19, "group_id": 5},
-        "DV Coordinate": {"type": "number", "value": "", "units": ["mm"], "position": 20, "group_id": 5},
-        "Virus Used": {"type": "text", "value": "", "position": 21, "group_id": 5},
-        "Injection Volume": {"type": "number", "value": "", "units": ["nl"], "position": 22, "group_id": 5},
-        "Injection Speed": {"type": "number", "value": "100", "units": ["nl/min"], "position": 23, "group_id": 5},
-        "Implant Type": {"type": "select", "value": "", "options": ["Cannula", "Fiber Optic", "GRIN Lens", "Prism Lens", "Other"], "position": 24, "group_id": 6},
-        "Implant Brain Area": {"type": "text", "value": "", "position": 25, "group_id": 6},
-        "Implant Hemisphere": {"type": "radio", "value": "", "options": ["L", "R"], "position": 26, "group_id": 6},
-        "Implant AP": {"type": "number", "value": "", "units": ["mm"], "position": 27, "group_id": 6},
-        "Implant ML": {"type": "number", "value": "", "units": ["mm"], "position": 28, "group_id": 6},
-        "Implant DV": {"type": "number", "value": "", "units": ["mm"], "position": 29, "group_id": 6},
-        "Subject ID": {"type": "text", "value": "", "position": 30, "group_id": 7},
-        "Strain": {"type": "text", "value": "", "position": 31, "group_id": 7},
-        "Cage ID": {"type": "text", "value": "", "position": 32, "group_id": 7},
-        "Genotype": {"type": "text", "value": "", "position": 33, "group_id": 7},
-        "Sex": {"type": "radio", "value": "", "options": ["M", "F"], "position": 34, "group_id": 7},
-        "Date of Birth": {"type": "date", "value": "", "position": 35, "group_id": 7},
-        "Weight": {"type": "number", "value": "", "units": ["g"], "position": 36, "group_id": 7},
-        "Negate ML": {"type": "checkbox", "value": "", "position": 37, "group_id": 7},
-        "Subject Notes": {"type": "text", "value": "", "position": 38, "group_id": 7},
-        "Injection Notes": {"type": "text", "value": "", "position": 39, "group_id": 8},
-        "Implant Notes": {"type": "text", "value": "", "position": 40, "group_id": 8},
-        "Surgery Notes": {"type": "text", "value": "", "position": 41, "group_id": 8}
-    },
-    "elabftw": {
-        "display_main_text": False,
-        "extra_fields_groups": [
-            {"id": 1, "name": "General Info"},
-            {"id": 2, "name": "Surgery Type"},
-            {"id": 3, "name": "Injection Method"},
-            {"id": 4, "name": "Viral Vector"},
-            {"id": 5, "name": "Injection Site"},
-            {"id": 6, "name": "Implant"},
-            {"id": 7, "name": "Subject/Mouse Details"},
-            {"id": 8, "name": "Notes"}
-        ]
-    }
-}
+# Template directory
+TEMPLATES_DIR = Path(__file__).parent / "templates"
 
-BEHAVIOR_TEMPLATE = {
-    "extra_fields": {
-        "Date": {"type": "date", "value": "", "required": True, "position": 1, "group_id": 1},
-        "Start Time": {"type": "time", "value": "", "position": 2, "group_id": 1},
-        "Personnel": {"type": "text", "value": "", "position": 3, "group_id": 1},
-        "Behavior Room": {"type": "select", "value": "", "options": ["2D-717", "2D-715", "RBC BD825", "RBC BD836", "2D-711"], "position": 4, "group_id": 1},
-        "Experiment": {"type": "text", "value": "", "position": 5, "group_id": 1},
-        "Manipulation": {"type": "text", "value": "", "position": 6, "group_id": 1},
-        "Video File Path": {"type": "text", "value": "", "position": 7, "group_id": 1},
-        "AnyMaze Protocol": {"type": "text", "value": "", "position": 8, "group_id": 1},
-        "Cue Information": {"type": "text", "value": "", "position": 9, "group_id": 1},
-        "Reward Information": {"type": "text", "value": "", "position": 10, "group_id": 1},
-        "Subject ID": {"type": "text", "value": "", "position": 11, "group_id": 2},
-        "Weight": {"type": "number", "value": "", "units": ["g"], "position": 12, "group_id": 2},
-        "Reward Consumed": {"type": "text", "value": "", "position": 13, "group_id": 2},
-        "Shock Intensity": {"type": "text", "value": "", "position": 14, "group_id": 2},
-        "Box Number": {"type": "text", "value": "", "position": 15, "group_id": 2},
-        "Subject Notes": {"type": "text", "value": "", "position": 16, "group_id": 2}
-    },
-    "elabftw": {
-        "display_main_text": False,
-        "extra_fields_groups": [
-            {"id": 1, "name": "Session Info"},
-            {"id": 2, "name": "Subject Details"}
-        ]
-    }
-}
+
+def load_json(filename: str) -> dict:
+    """Load a JSON file from templates directory"""
+    file_path = TEMPLATES_DIR / filename
+    if not file_path.exists():
+        print(f"ERROR: File not found: {file_path}")
+        sys.exit(1)
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 def get_api_key():
     """Prompt user for API key"""
     print("\n" + "="*70)
-    print("eLabFTW Template Creator")
+    print("eLabFTW Experiment Structure Setup")
     print("="*70)
-    print("\nTo create templates, you need an API key:")
+    print("\nTo set up the experiment structure, you need an API key:")
     print("1. Log in to eLabFTW at https://localhost:3148")
-    print("2. Go to User Panel (top right) → API Keys")
+    print("2. Go to User Panel (top right) -> API Keys")
     print("3. Click 'Generate new API Key'")
     print("4. Copy the key and paste it here\n")
 
@@ -130,7 +66,76 @@ def get_api_key():
     return api_key
 
 
-def create_template(api_key, title, body, metadata):
+def create_category(api_key: str, name: str, color: str) -> bool:
+    """Create an experiments category via API (uses teams/1/experiments_categories)"""
+    headers = {
+        "Authorization": api_key,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "name": name,
+        "color": color
+    }
+
+    try:
+        # Use teams endpoint for categories
+        response = requests.post(
+            f"{API_ENDPOINT}/teams/1/experiments_categories",
+            headers=headers,
+            json=payload,
+            verify=False
+        )
+
+        if response.status_code in (200, 201):
+            print(f"  [OK] Created category: {name}")
+            return True
+        elif response.status_code == 400 and "already exists" in response.text.lower():
+            print(f"  [SKIP] Category already exists: {name}")
+            return True
+        else:
+            print(f"  [FAIL] Failed to create category: {name}")
+            print(f"    Status: {response.status_code}")
+            print(f"    Response: {response.text}")
+            return False
+
+    except Exception as e:
+        print(f"  [FAIL] Error creating category: {e}")
+        return False
+
+
+def create_tag(api_key: str, tag_name: str) -> bool:
+    """Create a tag via API (uses teams/current/tags)"""
+    headers = {
+        "Authorization": api_key,
+        "Content-Type": "application/json"
+    }
+
+    try:
+        # Use teams/current/tags endpoint for tags
+        response = requests.post(
+            f"{API_ENDPOINT}/teams/current/tags",
+            headers=headers,
+            json={"tag": tag_name},
+            verify=False
+        )
+
+        if response.status_code in (200, 201):
+            print(f"  [OK] Created tag: {tag_name}")
+            return True
+        elif response.status_code == 400 and "already exists" in response.text.lower():
+            print(f"  [SKIP] Tag already exists: {tag_name}")
+            return True
+        else:
+            print(f"  [INFO] Tag creation returned: {response.status_code} - {tag_name}")
+            return True
+
+    except Exception as e:
+        print(f"  [FAIL] Error creating tag: {e}")
+        return False
+
+
+def create_template(api_key: str, title: str, body: str, metadata: dict) -> bool:
     """Create an experiment template via API"""
     headers = {
         "Authorization": api_key,
@@ -148,70 +153,113 @@ def create_template(api_key, title, body, metadata):
             f"{API_ENDPOINT}/experiments_templates",
             headers=headers,
             json=payload,
-            verify=False  # Skip SSL verification for self-signed cert
+            verify=False
         )
 
         if response.status_code == 201:
-            # eLabFTW sometimes returns empty response body on 201
-            try:
-                if response.text:
-                    template_id = response.json().get("id", "created")
-                else:
-                    template_id = "created"
-            except:
-                template_id = "created"
-            print(f"✓ Created template: {title}")
-            return template_id
+            print(f"  [OK] Created template: {title}")
+            return True
         else:
-            print(f"✗ Failed to create template: {title}")
-            print(f"  Status: {response.status_code}")
-            print(f"  Response: {response.text}")
-            return None
+            print(f"  [FAIL] Failed to create template: {title}")
+            print(f"    Status: {response.status_code}")
+            print(f"    Response: {response.text}")
+            return False
 
     except Exception as e:
-        print(f"✗ Error creating template: {e}")
+        print(f"  [FAIL] Error creating template: {e}")
         import traceback
         traceback.print_exc()
-        return None
+        return False
 
 
 def main():
     """Main function"""
     api_key = get_api_key()
 
+    # Load configuration files
     print("\n" + "="*70)
-    print("Creating Templates...")
+    print("Loading configuration files...")
     print("="*70 + "\n")
 
-    # Create Surgery Template
-    surgery_id = create_template(
+    structure = load_json("experiment_structure.json")
+    surgery_metadata = load_json("surgery_template.json")
+    behavior_metadata = load_json("behavior_template.json")
+
+    print(f"Loaded experiment structure:")
+    print(f"  - {len(structure['categories'])} categories")
+    print(f"  - {len(structure['tags'])} tags")
+    print(f"Loaded surgery template with {len(surgery_metadata['extra_fields'])} fields")
+    print(f"Loaded behavior template with {len(behavior_metadata['extra_fields'])} fields")
+
+    # Create categories
+    print("\n" + "="*70)
+    print("Creating Categories (Experiment Directories)...")
+    print("="*70 + "\n")
+
+    categories_ok = True
+    for cat in structure["categories"]:
+        if not create_category(api_key, cat["name"], cat["color"]):
+            categories_ok = False
+
+    # Create tags
+    print("\n" + "="*70)
+    print("Creating Tags (Cohort/Session Identifiers)...")
+    print("="*70 + "\n")
+
+    tags_ok = True
+    for tag in structure["tags"]:
+        if not create_tag(api_key, tag):
+            tags_ok = False
+
+    # Create templates
+    print("\n" + "="*70)
+    print("Creating Templates (Widgets)...")
+    print("="*70 + "\n")
+
+    surgery_ok = create_template(
         api_key=api_key,
         title="Surgery Data Entry",
-        body="<p>Use the extra fields below to record surgery details.</p>",
-        metadata=SURGERY_TEMPLATE
+        body="<p>Use the extra fields below to record surgery details. One entry per subject.</p>",
+        metadata=surgery_metadata
     )
 
-    # Create Behavior Template
-    behavior_id = create_template(
+    behavior_ok = create_template(
         api_key=api_key,
         title="Behavior Session",
-        body="<p>Use the extra fields below to record behavior session data.</p>",
-        metadata=BEHAVIOR_TEMPLATE
+        body="<p>Use the extra fields below to record behavior session data. One entry per subject.</p>",
+        metadata=behavior_metadata
     )
 
+    # Summary
     print("\n" + "="*70)
     print("Summary")
     print("="*70)
 
-    if surgery_id and behavior_id:
-        print("\n✓ All templates created successfully!")
-        print("\nTo use them:")
-        print("1. Go to Experiments → Create New")
-        print("2. Select template from dropdown")
-        print("3. Fill in the extra fields")
+    print("\nExperiment Structure (from first-api-response.md):")
+    print("  LabArchives          ->  eLabFTW")
+    print("  ------------------------------------------")
+    print("  Notebook             ->  Server (one per lab)")
+    print("  Experiment Directory ->  Category")
+    print("  Cohort Directory     ->  Tag")
+    print("  Widget               ->  Template")
+
+    print("\nCreated Items:")
+    print(f"  Categories: {len(structure['categories'])} (Behavior, Histology, Metadata, Photometry, Surgeries)")
+    print(f"  Tags: {len(structure['tags'])} (Cohort 1-5, Training Days, Baseline, Testing, etc.)")
+    print(f"  Templates: 2 (Surgery Data Entry, Behavior Session)")
+
+    if surgery_ok and behavior_ok:
+        print("\n[OK] Setup completed successfully!")
+        print("\nHow to use:")
+        print("1. Go to Experiments -> Create New")
+        print("2. Select a Category (e.g., 'Behavior' or 'Surgeries')")
+        print("3. Select a Template (e.g., 'Surgery Data Entry')")
+        print("4. Add Tags to organize (e.g., 'Cohort 1', 'Training Day 1')")
+        print("5. Fill in the extra fields")
+        print("\nNote: Create one experiment entry per subject")
     else:
-        print("\n✗ Some templates failed to create")
-        print("Check the errors above and try again")
+        print("\n[WARN] Some items may have failed to create")
+        print("Check the messages above for details")
         sys.exit(1)
 
 
